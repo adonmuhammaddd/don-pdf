@@ -1,0 +1,357 @@
+/* ============================================================
+   DonPDF — PDF-tool specific UI (dropzone, file lists, page grid,
+   progress). Built on the shared terminal design tokens.
+   ============================================================ */
+
+/* ---------------- Drop zone ---------------- */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  padding: var(--s8) var(--s5);
+  border: 1.5px dashed var(--border-1);
+  border-radius: var(--r-lg);
+  background: var(--bg-2);
+  color: var(--text-1);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+.dropzone:hover {
+  border-color: var(--accent);
+  background: var(--bg-3);
+}
+.dropzone.drag {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--border-glow);
+}
+.dropzone-glyph {
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-1);
+  background: var(--bg-1);
+}
+.dropzone-label {
+  font-weight: 700;
+  color: var(--text-0);
+  font-size: var(--fs-md);
+  letter-spacing: var(--ls-wide);
+}
+.dropzone-hint {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+/* ---------------- File list ---------------- */
+.file-list {
+  list-style: none;
+  margin: var(--s4) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+  font-size: var(--fs-sm);
+}
+.file-idx {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: var(--fs-xs);
+}
+.file-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-0);
+}
+.file-meta {
+  flex: none;
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+}
+.file-move {
+  display: inline-flex;
+  gap: 2px;
+}
+.file-move button,
+.file-x {
+  border: 1px solid var(--border);
+  background: var(--bg-1);
+  color: var(--text-1);
+  border-radius: var(--r-sm);
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  line-height: 1;
+  transition: all var(--dur-fast) var(--ease);
+}
+.file-move button:hover:not(:disabled),
+.file-x:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.file-move button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.file-x:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+/* ---------------- Action bar ---------------- */
+.pdf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s5);
+}
+.run-btn .spin {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--accent-ink);
+  border-top-color: transparent;
+  border-radius: 999px;
+  display: inline-block;
+  animation: dpdf-spin 0.7s linear infinite;
+}
+@keyframes dpdf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------------- Field row ---------------- */
+.opt-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s4);
+  margin-top: var(--s4);
+}
+.opt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  font-size: var(--fs-sm);
+  color: var(--text-1);
+}
+.opt > span {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.opt input[type="text"],
+.opt input[type="number"],
+.opt select {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-0);
+  padding: var(--s2) var(--s3);
+  min-width: 120px;
+}
+.opt input:focus,
+.opt select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--border-glow);
+}
+
+/* ---------------- Progress ---------------- */
+.pbar-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+.pbar {
+  flex: 1 1 auto;
+  height: 8px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.pbar-fill {
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  transition: width var(--dur) var(--ease);
+}
+.pbar-label {
+  flex: none;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  min-width: 38px;
+  text-align: right;
+}
+
+/* ---------------- Page grid (organize / results) ---------------- */
+.page-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+.page-cell {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+  padding: var(--s2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  align-items: center;
+}
+.page-cell.sel {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--border-glow);
+}
+.page-cell.del {
+  opacity: 0.4;
+}
+.page-thumb {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  background: #fff;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+}
+.page-thumb.ph {
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+}
+.page-no {
+  font-size: var(--fs-xs);
+  color: var(--text-1);
+  font-weight: 700;
+}
+.page-ops {
+  display: flex;
+  gap: var(--s1);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.page-ops button {
+  border: 1px solid var(--border);
+  background: var(--bg-1);
+  color: var(--text-1);
+  border-radius: var(--r-sm);
+  width: 26px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: var(--fs-xs);
+  line-height: 1;
+  transition: all var(--dur-fast) var(--ease);
+}
+.page-ops button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.page-ops button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.page-rot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--r-sm);
+  padding: 1px 4px;
+  font-weight: 700;
+}
+
+/* ---------------- Result download grid ---------------- */
+.dl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+.dl-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+  padding: var(--s2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  align-items: stretch;
+  text-align: center;
+}
+.dl-card img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  background: #fff;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+}
+.dl-card .dl-name {
+  font-size: var(--fs-xs);
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------- Notice / result line ---------------- */
+.pdf-note {
+  margin-top: var(--s4);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: var(--bg-2);
+  font-size: var(--fs-sm);
+  color: var(--text-1);
+}
+.pdf-note.err {
+  border-left-color: var(--error);
+  color: var(--error);
+}
+.pdf-note.ok {
+  border-left-color: var(--success);
+}

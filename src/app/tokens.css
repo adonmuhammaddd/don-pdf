@@ -1,0 +1,153 @@
+/* ============================================================
+   DonDevTool — Design Tokens
+   Retro terminal / CRT. Two themes (dark default, light cream).
+   Switchable phosphor accent (green | amber).
+   ============================================================ */
+
+/* Fonts are self-hosted from /public/fonts (see src/app/fonts.css) so the app
+   makes zero network requests. Regenerate with scripts/fetch-fonts.mjs. */
+
+:root {
+  /* Type */
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-read: 'IBM Plex Mono', var(--font-mono);
+
+  --fs-xs: 11px;
+  --fs-sm: 12.5px;
+  --fs-base: 14px;
+  --fs-md: 16px;
+  --fs-lg: 19px;
+  --fs-xl: 24px;
+  --fs-2xl: 34px;
+  --fs-3xl: 48px;
+
+  --lh-tight: 1.15;
+  --lh-snug: 1.4;
+  --lh-code: 1.65;
+  --ls-head: 0.14em;   /* terminal heading tracking */
+  --ls-wide: 0.04em;
+
+  /* Spacing scale */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 24px; --s7: 32px; --s8: 44px; --s9: 64px;
+
+  /* Radius — small/sharp to suit terminal */
+  --r-sm: 3px;
+  --r-md: 5px;
+  --r-lg: 7px;
+
+  --sidebar-w: 264px;
+  --maxw: 1180px;
+
+  /* Motion */
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --dur-fast: .12s;
+  --dur: .2s;
+}
+
+/* ---------------- DARK THEME (default) ---------------- */
+:root,
+[data-theme='dark'] {
+  --bg-0: #0b0d0c;        /* app backdrop, near-black w/ green cast */
+  --bg-1: #101413;        /* primary surface */
+  --bg-2: #161b19;        /* elevated surface / inputs */
+  --bg-3: #1d2421;        /* hover / raised */
+  --bg-inset: #0a0c0b;    /* code wells */
+
+  --border: #232b27;      /* hairline */
+  --border-1: #2e3833;    /* stronger */
+  --border-glow: color-mix(in oklab, var(--accent) 38%, transparent);
+
+  --text-0: #d8e3da;      /* primary, phosphor-tinted */
+  --text-1: #8f9c93;      /* secondary */
+  --text-2: #5d6862;      /* muted */
+  --text-inv: #0a0c0b;
+
+  --success: #41d67e;
+  --error:   #ff6b5e;
+  --warning: #ffbe4d;
+  --info:    #56b6f0;
+
+  /* syntax */
+  --syn-key:    var(--accent);
+  --syn-string: #c9d98a;
+  --syn-number: #e6a76b;
+  --syn-bool:   #6fb8ef;
+  --syn-null:   #8f9c93;
+  --syn-punc:   #6c7872;
+
+  --scrim: rgba(0,0,0,.55);
+  --scanline-opacity: .20;
+  --scanline-color: rgba(0,0,0,.55);
+  --vignette: radial-gradient(120% 120% at 50% 0%, transparent 60%, rgba(0,0,0,.35) 100%);
+  --shadow-pop: 0 18px 50px -12px rgba(0,0,0,.7);
+}
+
+/* ---------------- LIGHT THEME (cream / paper terminal) ---------------- */
+[data-theme='light'] {
+  --bg-0: #e7dcc4;        /* parchment backdrop */
+  --bg-1: #f1e9d6;        /* primary surface */
+  --bg-2: #f8f1e1;        /* elevated / inputs */
+  --bg-3: #efe4cc;        /* hover */
+  --bg-inset: #f5ecd9;    /* code wells */
+
+  --border: #d2c3a2;
+  --border-1: #bda87f;
+  --border-glow: color-mix(in oklab, var(--accent) 45%, transparent);
+
+  --text-0: #312814;      /* amber-brown ink */
+  --text-1: #6b5c3e;
+  --text-2: #978767;
+  --text-inv: #f8f1e1;
+
+  --success: #2f7d43;
+  --error:   #b4341f;
+  --warning: #a9711a;
+  --info:    #2d6fa3;
+
+  --syn-key:    var(--accent);
+  --syn-string: #6a7a2a;
+  --syn-number: #a35a17;
+  --syn-bool:   #2d6fa3;
+  --syn-null:   #978767;
+  --syn-punc:   #998961;
+
+  --scrim: rgba(60,46,20,.35);
+  --scanline-opacity: .10;
+  --scanline-color: rgba(120,90,40,.30);
+  --vignette: radial-gradient(120% 130% at 50% 0%, transparent 62%, rgba(120,90,40,.16) 100%);
+  --shadow-pop: 0 16px 44px -14px rgba(80,60,24,.42);
+}
+
+/* ---------------- ACCENT VARIANTS ---------------- */
+/* Phosphor green */
+[data-accent='green'] {
+  --accent:      #3ef07a;
+  --accent-2:    #5ef58f;
+  --accent-dim:  #1f6e40;
+  --accent-soft: color-mix(in oklab, var(--accent) 14%, transparent);
+  --accent-glow: color-mix(in oklab, var(--accent) 55%, transparent);
+  --accent-ink:  #062611;   /* text on accent fills */
+}
+/* Phosphor amber */
+[data-accent='amber'] {
+  --accent:      #ffb000;
+  --accent-2:    #ffc94d;
+  --accent-dim:  #8a5e00;
+  --accent-soft: color-mix(in oklab, var(--accent) 15%, transparent);
+  --accent-glow: color-mix(in oklab, var(--accent) 55%, transparent);
+  --accent-ink:  #2a1c00;
+}
+/* Light theme leans its own warmer accent regardless of pick, but honours hue */
+[data-theme='light'][data-accent='green'] {
+  --accent:      #3f7a2e;
+  --accent-2:    #4f9139;
+  --accent-dim:  #9bb98a;
+  --accent-ink:  #f3f7ee;
+}
+[data-theme='light'][data-accent='amber'] {
+  --accent:      #b5641e;
+  --accent-2:    #c8762a;
+  --accent-dim:  #d8b483;
+  --accent-ink:  #fbf4e7;
+}
