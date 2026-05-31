@@ -531,6 +531,81 @@
   margin-top: var(--s3);
 }
 
+/* ---------------- Form fields (Fill Forms) ---------------- */
+.form-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding: var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+}
+.form-field-label {
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  letter-spacing: var(--ls-wide);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.form-field input[type="text"],
+.form-field select {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-0);
+  padding: var(--s2) var(--s3);
+}
+.form-field input:focus,
+.form-field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--border-glow);
+}
+.form-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--fs-sm);
+  color: var(--text-1);
+}
+.form-field-na {
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  font-style: italic;
+}
+
+/* ---------------- Crop preview ---------------- */
+.crop-preview {
+  position: relative;
+  display: inline-block;
+  margin-top: var(--s4);
+  line-height: 0;
+}
+.crop-preview img {
+  display: block;
+  max-width: 320px;
+  height: auto;
+  border: 1px solid var(--border);
+}
+/* Inline left/right/top/bottom % position this relative to the image edges. */
+.crop-rect {
+  position: absolute;
+  border: 1.5px solid var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 9999px color-mix(in oklab, var(--error) 12%, transparent);
+  pointer-events: none;
+}
+
 /* ---------------- Notice / result line ---------------- */
 .pdf-note {
   margin-top: var(--s4);

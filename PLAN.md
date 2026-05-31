@@ -56,12 +56,21 @@ Still 100% browser-side, no server needed. All four verified in-browser
       size + colour per text box. Container-query units (`cqh`/`cqw`) map
       display size 1:1 to PDF points on export via pdf-lib `drawText`/`drawImage`.
 
-### Phase 2 leftovers (optional, not built)
+### Phase 2 leftovers ✅ DONE
 
-- [ ] Image watermark (currently text-only).
-- [ ] AcroForm field filling via pdf-lib `getForm()` (Fill & Sign does free
-      overlay, not native form fields yet).
-- [ ] Crop / resize page boxes.
+- [x] **Image watermark** — Watermark tool now toggles Text / Image (PNG/JPG),
+      centre or tiled, opacity / rotation / scale. Image centred via rotation-
+      compensated origin.
+- [x] **Fill Forms** — new tool. Reads native AcroForm fields via pdf-lib
+      `getForm()` (text / checkbox / dropdown / radio / option list), renders an
+      input per field, optional `flatten()` to lock values. Verified roundtrip.
+- [x] **Crop PDF** — new tool. Trim per-edge margins (pt) via `setCropBox`, all
+      or page range, with a live page-1 preview rectangle.
+
+### Still open (future)
+
+- [ ] Resize page boxes *with content scaling* (Crop only adjusts the crop box).
+- [ ] Multi-select for AcroForm option lists (currently single value).
 
 ## Phase 3 — Server-side conversions (separate concern)
 
