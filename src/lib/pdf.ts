@@ -39,6 +39,18 @@ export function baseName(name: string): string {
   return name.replace(/\.[^/.]+$/, "");
 }
 
+/** Parses "#rrggbb" / "rgb" hex into pdf-lib's 0–1 channel triple. */
+export function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  let h = hex.trim().replace(/^#/, "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return { r: 0, g: 0, b: 0 };
+  return {
+    r: parseInt(h.slice(0, 2), 16) / 255,
+    g: parseInt(h.slice(2, 4), 16) / 255,
+    b: parseInt(h.slice(4, 6), 16) / 255,
+  };
+}
+
 /* ---------------- Page-range parsing ---------------- */
 
 /**

@@ -337,6 +337,200 @@
   white-space: nowrap;
 }
 
+/* ---------------- Fill & Sign ---------------- */
+.fs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s2);
+}
+.fs-toolbar .spacer {
+  flex: 1 1 auto;
+}
+.fs-textctl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.fs-textctl input[type="text"] {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-0);
+  padding: var(--s1) var(--s2);
+}
+.fs-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--fs-sm);
+  color: var(--text-1);
+}
+.fs-pager button {
+  border: 1px solid var(--border);
+  background: var(--bg-1);
+  color: var(--text-1);
+  border-radius: var(--r-sm);
+  width: 28px;
+  height: 26px;
+  cursor: pointer;
+}
+.fs-pager button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.fs-pager button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.fs-stage {
+  margin-top: var(--s4);
+  display: flex;
+  justify-content: center;
+  padding: var(--s4);
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: auto;
+}
+.fs-page {
+  position: relative;
+  container-type: size; /* needs a determinate height → set via aspect-ratio inline */
+  width: 100%;
+  max-width: 720px;
+  box-shadow: var(--shadow-pop);
+  background: #fff;
+}
+.fs-page > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+}
+.fs-ann {
+  position: absolute;
+  line-height: 1.1;
+}
+.fs-ann.sel {
+  outline: 1px dashed var(--accent);
+  outline-offset: 2px;
+}
+.fs-grip,
+.fs-del {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  border-radius: var(--r-sm);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  z-index: 2;
+}
+.fs-grip {
+  top: -20px;
+  left: -2px;
+}
+.fs-del {
+  top: -20px;
+  right: -2px;
+  cursor: pointer;
+  background: var(--error);
+  color: #fff;
+}
+.fs-ann:hover .fs-grip,
+.fs-ann:hover .fs-del,
+.fs-ann.sel .fs-grip,
+.fs-ann.sel .fs-del {
+  opacity: 1;
+}
+.fs-text {
+  white-space: pre;
+  outline: none;
+  cursor: text;
+  min-width: 12px;
+  font-family: var(--font-read);
+}
+.fs-sig {
+  display: block;
+  height: auto;
+  user-select: none;
+}
+.fs-resize {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid var(--bg-1);
+  cursor: nwse-resize;
+  z-index: 2;
+}
+
+/* Signature pad modal */
+.sigpad-back {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--scrim);
+  display: grid;
+  place-items: center;
+  padding: var(--s4);
+}
+.sigpad {
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-pop);
+  padding: var(--s4);
+  width: min(600px, 100%);
+}
+.sigpad-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s3);
+  font-size: var(--fs-sm);
+  letter-spacing: var(--ls-wide);
+  color: var(--text-0);
+}
+.sigpad-head .fs-del {
+  position: static;
+  opacity: 1;
+  background: var(--bg-2);
+  color: var(--text-1);
+}
+.sigpad-canvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 560 / 220;
+  background: #fff;
+  border: 1px dashed var(--border-1);
+  border-radius: var(--r-sm);
+  touch-action: none;
+  cursor: crosshair;
+}
+.sigpad-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
 /* ---------------- Notice / result line ---------------- */
 .pdf-note {
   margin-top: var(--s4);

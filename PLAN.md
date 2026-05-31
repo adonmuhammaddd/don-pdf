@@ -38,20 +38,30 @@ Node smoke test of the pdf-lib operations.
       preview grid, per-page download + download-all `.zip`.
 - [x] **Image → PDF** — combine JPG/PNG into one PDF (match-image or fit-to-A4).
 
-## Phase 2 — More client-side (next)
+## Phase 2 — More client-side ✅ DONE
 
-Still 100% browser-side, no server needed.
+Still 100% browser-side, no server needed. All four verified in-browser
+(Playwright + Chrome): downloads fire, 0 console errors.
 
-- [ ] **Compress PDF** — downsample/re-encode embedded images (pdf.js render →
-      re-embed at lower quality). Realistic wins only on image-heavy PDFs.
-- [ ] **Page numbers** — stamp Bates/numbering with position + format options.
-- [ ] **Watermark** — text or image watermark, opacity/rotation/tiling.
-- [ ] **Delete / extract pages** — quick non-visual variants (Organize already
-      covers the visual path).
-- [ ] **Fill & Sign** — overlay text fields + drawn/typed signature onto a page
-      (canvas capture → pdf-lib `drawImage`/`drawText`). Form-field filling for
-      AcroForm PDFs via pdf-lib `getForm()`.
-- [ ] **Reorder/Rotate presets**, crop, resize page boxes.
+- [x] **Page Numbers** — stamp numbers in any corner; format (`1`, `1/N`,
+      `Page 1`, `Page 1 of N`), start number, font size, margin, all/range.
+- [x] **Watermark** — text watermark; center or tiled, opacity / rotation /
+      color / size, all/range.
+- [x] **Compress PDF** — re-renders each page to JPEG (pdf.js) and rebuilds via
+      pdf-lib at Strong/Balanced/Light. Honest about the trade-off: flattens
+      text to image, only shrinks image-heavy PDFs (warns + reports when the
+      result isn't smaller).
+- [x] **Fill & Sign** — interactive per-page editor: add text / date / a drawn
+      signature (canvas pad → PNG), drag to place, resize signature, font
+      size + colour per text box. Container-query units (`cqh`/`cqw`) map
+      display size 1:1 to PDF points on export via pdf-lib `drawText`/`drawImage`.
+
+### Phase 2 leftovers (optional, not built)
+
+- [ ] Image watermark (currently text-only).
+- [ ] AcroForm field filling via pdf-lib `getForm()` (Fill & Sign does free
+      overlay, not native form fields yet).
+- [ ] Crop / resize page boxes.
 
 ## Phase 3 — Server-side conversions (separate concern)
 
