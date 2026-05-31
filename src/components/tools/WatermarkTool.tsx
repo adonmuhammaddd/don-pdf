@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { degrees, PDFDocument, StandardFonts, rgb, type PDFImage } from "pdf-lib";
 import { FileDrop, RunButton } from "@/components/pdfui";
-import { Segmented, TerminalWindow } from "@/components/ui";
+import { Banner, RangeField, Segmented } from "@/components/ui";
 import { baseName, downloadBlob, hexToRgb, parsePageRange } from "@/lib/pdf";
 
 interface Loaded {
@@ -24,13 +24,13 @@ export default function WatermarkTool() {
   const [source, setSource] = useState<Source>("text");
   const [text, setText] = useState("CONFIDENTIAL");
   const [img, setImg] = useState<WImage | null>(null);
-  const [size, setSize] = useState(48); // text: font pt · image: % of page width
-  const [imgScale, setImgScale] = useState(40); // % of page width
+  const [size, setSize] = useState(48);
+  const [imgScale, setImgScale] = useState(40);
   const [opacity, setOpacity] = useState(20);
   const [rotation, setRotation] = useState(45);
   const [color, setColor] = useState("#888888");
   const [mode, setMode] = useState<Mode>("center");
-  const [allPages, setAllPages] = useState(true);
+  const [target, setTarget] = useState<"all" | "range">("all");
   const [range, setRange] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
@@ -72,7 +72,7 @@ export default function WatermarkTool() {
       const pdf = await PDFDocument.load(doc.bytes, { ignoreEncryption: true });
       const op = Math.max(0, Math.min(1, opacity / 100));
       const rad = (rotation * Math.PI) / 180;
-      const indices = allPages ? pdf.getPageIndices() : parsePageRange(range, doc.pages);
+      const indices = target === "all" ? pdf.getPageIndices() : parsePageRange(range, doc.pages);
       const pages = pdf.getPages();
 
       let font: Awaited<ReturnType<typeof pdf.embedFont>> | null = null;
@@ -88,9 +88,9 @@ export default function WatermarkTool() {
       for (const idx of indices) {
         const page = pages[idx];
         const { width, height } = page.getSize();
-
         if (source === "text" && font) {
-          const common = { size, font, color: (() => { const { r, g, b } = hexToRgb(color); return rgb(r, g, b); })(), opacity: op, rotate: degrees(rotation) };
+          const { r, g, b } = hexToRgb(color);
+          const common = { size, font, color: rgb(r, g, b), opacity: op, rotate: degrees(rotation) };
           if (mode === "center") {
             page.drawText(text, { ...common, x: width / 2 - (textW / 2) * Math.cos(rad), y: height / 2 - (textW / 2) * Math.sin(rad) });
           } else {
@@ -104,7 +104,6 @@ export default function WatermarkTool() {
           const h = w * (stamp.height / stamp.width);
           const common = { width: w, height: h, opacity: op, rotate: degrees(rotation) };
           if (mode === "center") {
-            // Position so the image's centre lands on the page centre after rotation.
             page.drawImage(stamp, {
               ...common,
               x: width / 2 - (w / 2) * Math.cos(rad) + (h / 2) * Math.sin(rad),
@@ -129,116 +128,131 @@ export default function WatermarkTool() {
     }
   };
 
+  if (!doc) {
+    return (
+      <FileDrop
+        accept="application/pdf"
+        multiple={false}
+        onFiles={load}
+        icon="watermark"
+        title={<>Drop a PDF or <span className="em">browse</span></>}
+        sub="Stamp text or an image across the pages."
+      />
+    );
+  }
+
   return (
-    <div>
-      <TerminalWindow title={<><b>watermark</b> — source PDF</>} glow>
-        <FileDrop
-          accept="application/pdf"
-          multiple={false}
-          onFiles={load}
-          label={doc ? doc.name : "Drop a PDF here"}
-          hint={doc ? `${doc.pages} pages loaded` : "single file — nothing is uploaded"}
-        />
-      </TerminalWindow>
+    <div className="stack" style={{ gap: "var(--s-5)" }}>
+      <div className="panel">
+        <div className="panel-title with-sub">{doc.name}</div>
+        <div className="panel-sub">{doc.pages} pages loaded</div>
 
-      {doc && (
-        <>
-          <div className="opt-row">
-            <label className="opt">
-              <span>watermark</span>
-              <Segmented
-                value={source}
-                onChange={setSource}
-                options={[
-                  { value: "text", label: "Text" },
-                  { value: "image", label: "Image" },
-                ]}
-              />
-            </label>
-            {source === "text" ? (
-              <label className="opt" style={{ flex: "1 1 200px" }}>
-                <span>text</span>
-                <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="CONFIDENTIAL" />
-              </label>
+        <div className="field-row">
+          <div className="field">
+            <label>Watermark</label>
+            <Segmented
+              value={source}
+              onChange={setSource}
+              options={[
+                { value: "text", label: "Text" },
+                { value: "image", label: "Image" },
+              ]}
+            />
+          </div>
+          <div className="field">
+            <label>Layout</label>
+            <Segmented
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: "center", label: "Center" },
+                { value: "tiled", label: "Tiled" },
+              ]}
+            />
+          </div>
+        </div>
+
+        {source === "text" ? (
+          <>
+            <div className="field">
+              <label>Text</label>
+              <input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="CONFIDENTIAL" />
+            </div>
+            <div className="field-row">
+              <div className="field">
+                <label>Font size</label>
+                <input className="input" type="number" min={8} max={160} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+              </div>
+              <div className="field">
+                <label>Color</label>
+                <div className="color-row">
+                  <input type="color" className="color-swatch" value={color} onChange={(e) => setColor(e.target.value)} aria-label="Watermark color" />
+                  <input className="input mono" style={{ flex: 1 }} value={color} onChange={(e) => setColor(e.target.value)} />
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="field">
+            <label>Watermark image</label>
+            {!img ? (
+              <FileDrop accept="image/png,image/jpeg" multiple={false} onFiles={loadImage} compact icon="image" title="Drop a PNG / JPG" sub="PNG with transparency works best." />
             ) : (
-              <label className="opt">
-                <span>font / size</span>
-                <input type="number" min={5} max={100} value={imgScale} onChange={(e) => setImgScale(Number(e.target.value))} title="width % of page" />
-              </label>
+              <div className="row spread" style={{ gap: 12 }}>
+                <span className="file-name" style={{ flex: 1 }}>{img.name}</span>
+                <button type="button" className="btn btn-ghost" onClick={() => setImg(null)}>Change</button>
+              </div>
             )}
-            <label className="opt">
-              <span>layout</span>
-              <Segmented
-                value={mode}
-                onChange={setMode}
-                options={[
-                  { value: "center", label: "Center" },
-                  { value: "tiled", label: "Tiled" },
-                ]}
-              />
-            </label>
+            <div className="field-row" style={{ marginTop: "var(--s-4)" }}>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label>Size (% of width)</label>
+                <RangeField value={imgScale} min={5} max={100} onChange={setImgScale} fmt={(v) => `${v}%`} />
+              </div>
+            </div>
           </div>
+        )}
 
-          {source === "image" && (
-            <TerminalWindow title={<><b>watermark image</b> — PNG / JPG (PNG recommended for transparency)</>}>
-              <FileDrop
-                accept="image/png,image/jpeg"
-                multiple={false}
-                onFiles={loadImage}
-                label={img ? img.name : "Drop watermark image"}
-                hint={img ? "loaded" : "PNG with transparency works best — nothing is uploaded"}
-              />
-            </TerminalWindow>
+        <div className="field-row">
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Opacity</label>
+            <RangeField value={opacity} min={1} max={100} onChange={setOpacity} fmt={(v) => `${v}%`} />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Rotation</label>
+            <RangeField value={rotation} min={-90} max={90} onChange={setRotation} fmt={(v) => `${v}°`} />
+          </div>
+        </div>
+
+        <div className="field" style={{ marginTop: "var(--s-4)", marginBottom: 0 }}>
+          <label>Apply to</label>
+          <Segmented
+            value={target}
+            onChange={setTarget}
+            options={[
+              { value: "all", label: "All pages" },
+              { value: "range", label: "Range" },
+            ]}
+          />
+          {target === "range" && (
+            <input className="input mono" style={{ marginTop: 8 }} value={range} onChange={(e) => setRange(e.target.value)} placeholder="e.g. 1-3" />
           )}
+        </div>
+      </div>
 
-          <div className="opt-row">
-            {source === "text" && (
-              <>
-                <label className="opt">
-                  <span>font size</span>
-                  <input type="number" min={8} max={160} value={size} onChange={(e) => setSize(Number(e.target.value))} />
-                </label>
-                <label className="opt">
-                  <span>color</span>
-                  <input type="text" value={color} onChange={(e) => setColor(e.target.value)} placeholder="#888888" />
-                </label>
-              </>
-            )}
-            <label className="opt">
-              <span>opacity %</span>
-              <input type="number" min={1} max={100} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} />
-            </label>
-            <label className="opt">
-              <span>rotation°</span>
-              <input type="number" min={-90} max={90} value={rotation} onChange={(e) => setRotation(Number(e.target.value))} />
-            </label>
-            <label className="opt">
-              <span>apply to</span>
-              <Segmented
-                value={allPages ? "all" : "range"}
-                onChange={(v) => setAllPages(v === "all")}
-                options={[
-                  { value: "all", label: "All" },
-                  { value: "range", label: "Range" },
-                ]}
-              />
-            </label>
-            {!allPages && (
-              <label className="opt">
-                <span>pages</span>
-                <input type="text" value={range} onChange={(e) => setRange(e.target.value)} placeholder="e.g. 1-3" />
-              </label>
-            )}
-          </div>
+      <div className="run-bar">
+        <RunButton onClick={run} busy={busy} icon="watermark">
+          Apply watermark
+        </RunButton>
+        <button type="button" className="btn btn-ghost" onClick={() => setDoc(null)} disabled={busy}>
+          Choose another
+        </button>
+      </div>
 
-          <div className="pdf-actions">
-            <RunButton onClick={run} busy={busy}>Apply watermark</RunButton>
-            <button type="button" className="btn" onClick={() => setDoc(null)} disabled={busy}>Clear</button>
-          </div>
-        </>
+      {note && (
+        <Banner kind={note.kind === "ok" ? "success" : "error"} title={note.kind === "ok" ? "Done" : "Couldn't watermark"}>
+          {note.msg}
+        </Banner>
       )}
-
-      {note && <div className={`pdf-note ${note.kind}`}>{note.msg}</div>}
     </div>
   );
 }

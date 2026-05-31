@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PDFDocument } from "pdf-lib";
 import { FileDrop, FileList, RunButton, type NamedFile } from "@/components/pdfui";
-import { TerminalWindow } from "@/components/ui";
+import { Banner } from "@/components/ui";
 import { downloadBlob } from "@/lib/pdf";
 
 const uid = () => Math.random().toString(36).slice(2);
@@ -48,7 +48,7 @@ export default function MergeTool() {
       }
       const result = await out.save();
       downloadBlob(result, "merged.pdf");
-      setNote({ kind: "ok", msg: `Merged ${items.length} files → merged.pdf (${pages} pages).` });
+      setNote({ kind: "ok", msg: `Merged ${items.length} files into merged.pdf (${pages} pages).` });
     } catch (e) {
       setNote({ kind: "err", msg: `Merge failed: ${(e as Error).message}` });
     } finally {
@@ -57,29 +57,32 @@ export default function MergeTool() {
   };
 
   return (
-    <div>
-      <TerminalWindow title={<><b>merge</b> — drop PDFs in order</>} glow>
-        <FileDrop
-          accept="application/pdf"
-          onFiles={addFiles}
-          label="Drop PDF files here"
-          hint="add two or more — drag to reorder with ↑ ↓ — nothing is uploaded"
-        />
-        <FileList items={items} onRemove={remove} onMove={move} />
-      </TerminalWindow>
+    <div className="stack" style={{ gap: "var(--s-5)" }}>
+      <FileDrop
+        accept="application/pdf"
+        onFiles={addFiles}
+        title={<>Drop PDFs or <span className="em">browse</span> to add</>}
+        sub="Add as many PDFs as you like — they'll merge top to bottom."
+      />
+      {items.length > 0 && <FileList items={items} onRemove={remove} onMove={move} />}
 
-      <div className="pdf-actions">
-        <RunButton onClick={run} busy={busy} disabled={items.length < 2}>
+      <div className="run-bar">
+        <RunButton onClick={run} busy={busy} disabled={items.length < 2} icon="merge">
           Merge {items.length > 0 ? `${items.length} PDFs` : "PDFs"}
         </RunButton>
         {items.length > 0 && (
-          <button type="button" className="btn" onClick={() => setItems([])} disabled={busy}>
+          <button type="button" className="btn btn-ghost" onClick={() => setItems([])} disabled={busy}>
             Clear
           </button>
         )}
+        {items.length < 2 && <span className="note">Add at least 2 files.</span>}
       </div>
 
-      {note && <div className={`pdf-note ${note.kind}`}>{note.msg}</div>}
+      {note && (
+        <Banner kind={note.kind === "ok" ? "success" : "error"} title={note.kind === "ok" ? "Done" : "Couldn't merge"}>
+          {note.msg}
+        </Banner>
+      )}
     </div>
   );
 }

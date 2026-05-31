@@ -10,7 +10,7 @@ import {
 } from "react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { FileDrop, ProgressBar, RunButton } from "@/components/pdfui";
-import { Icon, TerminalWindow } from "@/components/ui";
+import { Banner, Icon, Modal, RangeField, cx } from "@/components/ui";
 import { baseName, downloadBlob, hexToRgb, openPdfjsDoc, renderPageToBlob } from "@/lib/pdf";
 
 interface RPage {
@@ -18,21 +18,19 @@ interface RPage {
   ptW: number;
   ptH: number;
 }
-type AnnType = "text" | "sig";
+type AnnType = "text" | "date" | "sig";
 interface Ann {
   id: string;
-  page: number; // 0-based
+  page: number;
   type: AnnType;
-  xFrac: number; // top-left, fraction of page box
+  xFrac: number;
   yFrac: number;
-  // text
   text?: string;
-  fsFrac?: number; // font size as fraction of page height
+  fsFrac?: number;
   color?: string;
-  // signature
-  img?: string; // dataURL (png)
-  wFrac?: number; // width as fraction of page width
-  aspect?: number; // h/w of the image
+  img?: string;
+  wFrac?: number;
+  aspect?: number;
 }
 
 const uid = () => Math.random().toString(36).slice(2);
@@ -44,6 +42,7 @@ export default function FillSignTool() {
   const [cur, setCur] = useState(0);
   const [anns, setAnns] = useState<Ann[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -52,7 +51,6 @@ export default function FillSignTool() {
   const [note, setNote] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
 
   const pageBoxRef = useRef<HTMLDivElement>(null);
-  // {id, startX, startY, ox, oy, w, h, mode}
   const dragRef = useRef<null | {
     id: string;
     startX: number;
@@ -70,6 +68,7 @@ export default function FillSignTool() {
     setNote(null);
     setLoading(true);
     setProgress(0);
+    setPages([]);
     try {
       const buf = await file.arrayBuffer();
       const doc = await openPdfjsDoc(buf);
@@ -111,35 +110,34 @@ export default function FillSignTool() {
     setSelected((s) => (s === id ? null : s));
   };
 
-  const addText = (value: string) => {
-    const a: Ann = {
-      id: uid(), page: cur, type: "text", xFrac: 0.1, yFrac: 0.1,
-      text: value, fsFrac: 0.025, color: "#1a1a1a",
-    };
+  const addText = (value: string, type: AnnType = "text") => {
+    const a: Ann = { id: uid(), page: cur, type, xFrac: 0.12, yFrac: 0.12, text: value, fsFrac: 0.025, color: "#1a1a2e" };
     setAnns((p) => [...p, a]);
     setSelected(a.id);
   };
   const addSignature = (img: string, aspect: number) => {
-    const a: Ann = {
-      id: uid(), page: cur, type: "sig", xFrac: 0.1, yFrac: 0.7,
-      img, aspect, wFrac: 0.3,
-    };
+    const a: Ann = { id: uid(), page: cur, type: "sig", xFrac: 0.12, yFrac: 0.7, img, aspect, wFrac: 0.3 };
     setAnns((p) => [...p, a]);
     setSelected(a.id);
     setLastSig({ img, aspect });
   };
 
-  // ---- drag / resize ----
   const onPointerDown = (e: RPointerEvent, ann: Ann, mode: "move" | "resize") => {
+    if (editing === ann.id) return;
     e.preventDefault();
     e.stopPropagation();
     const box = pageBoxRef.current;
     if (!box) return;
     const rect = box.getBoundingClientRect();
     dragRef.current = {
-      id: ann.id, startX: e.clientX, startY: e.clientY,
+      id: ann.id,
+      startX: e.clientX,
+      startY: e.clientY,
       ox: mode === "resize" ? ann.wFrac ?? 0.3 : ann.xFrac,
-      oy: ann.yFrac, w: rect.width, h: rect.height, mode,
+      oy: ann.yFrac,
+      w: rect.width,
+      h: rect.height,
+      mode,
     };
     setSelected(ann.id);
   };
@@ -157,7 +155,9 @@ export default function FillSignTool() {
         update(d.id, { wFrac: nw });
       }
     };
-    const up = () => { dragRef.current = null; };
+    const up = () => {
+      dragRef.current = null;
+    };
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
     return () => {
@@ -166,7 +166,6 @@ export default function FillSignTool() {
     };
   }, [update]);
 
-  // ---- export ----
   const run = async () => {
     if (!bytes) return;
     if (anns.length === 0) {
@@ -179,22 +178,17 @@ export default function FillSignTool() {
       const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
       const font = await pdf.embedFont(StandardFonts.Helvetica);
       const docPages = pdf.getPages();
-      // Cache embedded signature images by dataURL.
       const sigCache = new Map<string, Awaited<ReturnType<typeof pdf.embedPng>>>();
       for (const a of anns) {
         const page = docPages[a.page];
         if (!page) continue;
         const { width: ptW, height: ptH } = page.getSize();
-        if (a.type === "text") {
+        if (a.type === "text" || a.type === "date") {
           const size = (a.fsFrac ?? 0.025) * ptH;
-          const { r, g, b } = hexToRgb(a.color ?? "#1a1a1a");
+          const { r, g, b } = hexToRgb(a.color ?? "#1a1a2e");
           const lines = (a.text ?? "").replace(/\r/g, "").split("\n");
           lines.forEach((line, li) => {
-            page.drawText(line, {
-              x: a.xFrac * ptW,
-              y: ptH * (1 - a.yFrac) - size * (li + 1),
-              size, font, color: rgb(r, g, b),
-            });
+            page.drawText(line, { x: a.xFrac * ptW, y: ptH * (1 - a.yFrac) - size * (li + 1), size, font, color: rgb(r, g, b) });
           });
         } else if (a.type === "sig" && a.img) {
           let png = sigCache.get(a.img);
@@ -222,118 +216,135 @@ export default function FillSignTool() {
   const sel = anns.find((a) => a.id === selected) ?? null;
   const today = new Date().toLocaleDateString();
 
-  return (
-    <div>
-      {pages.length === 0 && (
-        <TerminalWindow title={<><b>fill &amp; sign</b> — source PDF</>} glow>
-          <FileDrop
-            accept="application/pdf"
-            multiple={false}
-            onFiles={load}
-            label={loading ? "Rendering pages…" : "Drop a PDF here"}
-            hint={loading ? undefined : "add text & a signature, drag to place — nothing is uploaded"}
-          />
-          {loading && <ProgressBar value={progress} label="loading" />}
-        </TerminalWindow>
-      )}
-
-      {pages.length > 0 && (
-        <>
-          <div className="fs-toolbar">
-            <button type="button" className="btn" onClick={() => addText("Text")}>+ Text</button>
-            <button type="button" className="btn" onClick={() => addText(today)}>+ Date</button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => (lastSig ? addSignature(lastSig.img, lastSig.aspect) : setPadOpen(true))}
-            >
-              ✎ Signature
-            </button>
-            {lastSig && (
-              <button type="button" className="btn" onClick={() => setPadOpen(true)}>Draw new</button>
-            )}
-            <span className="spacer" />
-            {sel?.type === "text" && (
-              <span className="fs-textctl">
-                <input
-                  type="range" min={12} max={60} step={1}
-                  value={Math.round((sel.fsFrac ?? 0.025) * 1000)}
-                  onChange={(e) => update(sel.id, { fsFrac: Number(e.target.value) / 1000 })}
-                  title="Font size"
-                />
-                <input
-                  type="text" value={sel.color ?? "#1a1a1a"}
-                  onChange={(e) => update(sel.id, { color: e.target.value })}
-                  style={{ width: 78 }} title="Color"
-                />
-              </span>
-            )}
-          </div>
-
-          <div className="pdf-actions" style={{ marginTop: "var(--s3)" }}>
-            <RunButton onClick={run} busy={busy}>Apply &amp; download</RunButton>
-            <button type="button" className="btn" onClick={reset} disabled={busy}>Load another</button>
-            <span className="fs-pager">
-              <button type="button" onClick={() => setCur((c) => Math.max(0, c - 1))} disabled={cur === 0}>←</button>
-              page {cur + 1} / {pages.length}
-              <button type="button" onClick={() => setCur((c) => Math.min(pages.length - 1, c + 1))} disabled={cur === pages.length - 1}>→</button>
-            </span>
-          </div>
-
-          <div className="fs-stage" onMouseDown={() => setSelected(null)}>
-            <div
-              className="fs-page"
-              ref={pageBoxRef}
-              style={{ aspectRatio: `${pages[cur].ptW} / ${pages[cur].ptH}` }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- local object URL */}
-              <img src={pages[cur].url} alt={`Page ${cur + 1}`} draggable={false} />
-              {anns.filter((a) => a.page === cur).map((a) => {
-                const style: CSSProperties = { left: `${a.xFrac * 100}%`, top: `${a.yFrac * 100}%` };
-                const isSel = a.id === selected;
-                return (
-                  <div
-                    key={a.id}
-                    className={`fs-ann${isSel ? " sel" : ""}`}
-                    style={style}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    <div className="fs-grip" onPointerDown={(e) => onPointerDown(e, a, "move")} title="Drag to move">⠿</div>
-                    <button className="fs-del" type="button" onClick={() => removeAnn(a.id)} title="Remove">×</button>
-                    {a.type === "text" ? (
-                      <div
-                        className="fs-text"
-                        style={{ fontSize: `${(a.fsFrac ?? 0.025) * 100}cqh`, color: a.color }}
-                        contentEditable
-                        suppressContentEditableWarning
-                        onFocus={() => setSelected(a.id)}
-                        onBlur={(e) => update(a.id, { text: e.currentTarget.innerText })}
-                      >
-                        {a.text}
-                      </div>
-                    ) : (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element -- local dataURL signature */}
-                        <img className="fs-sig" style={{ width: `${(a.wFrac ?? 0.3) * 100}cqw` }} src={a.img} alt="signature" draggable={false} />
-                        <div className="fs-resize" onPointerDown={(e) => onPointerDown(e, a, "resize")} title="Drag to resize" />
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </>
-      )}
-
-      {note && <div className={`pdf-note ${note.kind}`}>{note.msg}</div>}
-
-      {padOpen && (
-        <SignaturePad
-          onCancel={() => setPadOpen(false)}
-          onSave={(img, aspect) => { setPadOpen(false); addSignature(img, aspect); }}
+  if (pages.length === 0) {
+    return (
+      <div className="stack" style={{ gap: "var(--s-5)" }}>
+        <FileDrop
+          accept="application/pdf"
+          multiple={false}
+          onFiles={load}
+          icon="sign"
+          title={loading ? "Rendering pages…" : <>Drop a PDF to <span className="em">fill &amp; sign</span></>}
+          sub={loading ? "One moment." : "Add text, dates, and your signature anywhere on the page."}
         />
+        {loading && <ProgressBar value={progress} label="Loading pages" />}
+        {note && <Banner kind="error">{note.msg}</Banner>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="editor-shell">
+      <div className="editor-toolbar">
+        <button type="button" className="tool-pill" onClick={() => addText("Text", "text")}>
+          <Icon name="type" size={16} /> Text
+        </button>
+        <button type="button" className="tool-pill" onClick={() => addText(today, "date")}>
+          <Icon name="calendar" size={16} /> Date
+        </button>
+        <button type="button" className="tool-pill" onClick={() => (lastSig ? addSignature(lastSig.img, lastSig.aspect) : setPadOpen(true))}>
+          <Icon name="sign" size={16} /> Signature
+        </button>
+        {lastSig && (
+          <button type="button" className="tool-pill" onClick={() => setPadOpen(true)}>
+            Draw new
+          </button>
+        )}
+
+        {sel && (sel.type === "text" || sel.type === "date") && (
+          <>
+            <span className="sep" />
+            <div style={{ width: 120 }}>
+              <RangeField value={Math.round((sel.fsFrac ?? 0.025) * 1000)} min={12} max={60} onChange={(v) => update(sel.id, { fsFrac: v / 1000 })} fmt={(v) => `${v}`} />
+            </div>
+            <input type="color" className="color-swatch" value={sel.color ?? "#1a1a2e"} onChange={(e) => update(sel.id, { color: e.target.value })} aria-label="Text color" />
+          </>
+        )}
+
+        <div className="pager">
+          <button type="button" className="icon-btn" onClick={() => setCur((c) => Math.max(0, c - 1))} disabled={cur === 0} aria-label="Previous page">
+            <Icon name="chevronRight" size={16} style={{ transform: "rotate(180deg)" }} />
+          </button>
+          <span className="mono">{cur + 1}</span> / {pages.length}
+          <button type="button" className="icon-btn" onClick={() => setCur((c) => Math.min(pages.length - 1, c + 1))} disabled={cur === pages.length - 1} aria-label="Next page">
+            <Icon name="chevronRight" size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="run-bar" style={{ marginTop: 0 }}>
+        <RunButton onClick={run} busy={busy} icon="download">
+          Apply &amp; download
+        </RunButton>
+        <button type="button" className="btn btn-ghost" onClick={reset} disabled={busy}>
+          Load another
+        </button>
+      </div>
+
+      <div className="canvas-stage" onMouseDown={() => { setSelected(null); setEditing(null); }}>
+        <div
+          className="page-canvas"
+          ref={pageBoxRef}
+          style={{ aspectRatio: `${pages[cur].ptW} / ${pages[cur].ptH}`, width: "100%", maxWidth: 540, containerType: "size" } as CSSProperties}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- local object URL */}
+          <img src={pages[cur].url} alt={`Page ${cur + 1}`} draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }} />
+          {anns.filter((a) => a.page === cur).map((a) => {
+            const isSel = a.id === selected;
+            const style: CSSProperties = { left: `${a.xFrac * 100}%`, top: `${a.yFrac * 100}%` };
+            return (
+              <div
+                key={a.id}
+                className={cx("annot", a.type, isSel && "selected")}
+                style={style}
+                onPointerDown={(e) => onPointerDown(e, a, "move")}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                {a.type === "sig" ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- local signature dataURL */}
+                    <img src={a.img} alt="signature" draggable={false} style={{ width: `${(a.wFrac ?? 0.3) * 100}cqw`, height: "auto", display: "block" }} />
+                    {isSel && <span className="handle br" onPointerDown={(e) => onPointerDown(e, a, "resize")} />}
+                  </>
+                ) : (
+                  <span
+                    style={{ fontSize: `${(a.fsFrac ?? 0.025) * 100}cqh`, color: a.color, whiteSpace: "pre", display: "block", outline: "none" }}
+                    contentEditable={editing === a.id}
+                    suppressContentEditableWarning
+                    onDoubleClick={() => { setEditing(a.id); setSelected(a.id); }}
+                    onBlur={(e) => { update(a.id, { text: e.currentTarget.innerText }); setEditing(null); }}
+                  >
+                    {a.text}
+                  </span>
+                )}
+                {isSel && (
+                  <button
+                    type="button"
+                    onClick={() => removeAnn(a.id)}
+                    aria-label="Remove"
+                    style={{ position: "absolute", top: -10, right: -10, width: 20, height: 20, borderRadius: "50%", background: "var(--error)", color: "#fff", display: "grid", placeItems: "center", boxShadow: "var(--shadow-sm)" }}
+                  >
+                    <Icon name="x" size={12} strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+        Tip: double-click text to edit · drag to move · drag the corner dot to resize a signature.
+      </p>
+
+      {note && (
+        <Banner kind={note.kind === "ok" ? "success" : "error"} title={note.kind === "ok" ? "Done" : "Couldn't export"}>
+          {note.msg}
+        </Banner>
       )}
+
+      {padOpen && <SignaturePad onCancel={() => setPadOpen(false)} onSave={(img, aspect) => { setPadOpen(false); addSignature(img, aspect); }} />}
     </div>
   );
 }
@@ -350,8 +361,8 @@ function SignaturePad({
   const drawing = useRef(false);
   const dirty = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
+  const [hasInk, setHasInk] = useState(false);
 
-  const ctx = () => canvasRef.current?.getContext("2d") ?? null;
   const pos = (e: RPointerEvent) => {
     const c = canvasRef.current!;
     const r = c.getBoundingClientRect();
@@ -360,11 +371,12 @@ function SignaturePad({
   const down = (e: RPointerEvent) => {
     drawing.current = true;
     dirty.current = true;
+    setHasInk(true);
     last.current = pos(e);
   };
   const move = (e: RPointerEvent) => {
     if (!drawing.current) return;
-    const c = ctx();
+    const c = canvasRef.current?.getContext("2d");
     if (!c || !last.current) return;
     const p = pos(e);
     c.strokeStyle = "#16140f";
@@ -377,11 +389,15 @@ function SignaturePad({
     c.stroke();
     last.current = p;
   };
-  const up = () => { drawing.current = false; last.current = null; };
+  const up = () => {
+    drawing.current = false;
+    last.current = null;
+  };
   const clear = () => {
-    const c = ctx();
-    if (c && canvasRef.current) c.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    const c = canvasRef.current;
+    c?.getContext("2d")?.clearRect(0, 0, c.width, c.height);
     dirty.current = false;
+    setHasInk(false);
   };
   const save = () => {
     const c = canvasRef.current;
@@ -390,27 +406,20 @@ function SignaturePad({
   };
 
   return (
-    <div className="sigpad-back" onMouseDown={onCancel}>
-      <div className="sigpad" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="sigpad-head">
-          <span>Draw your signature</span>
-          <button type="button" className="fs-del" onClick={onCancel}><Icon name="x" size={14} /></button>
-        </div>
-        <canvas
-          ref={canvasRef}
-          className="sigpad-canvas"
-          width={560}
-          height={220}
-          onPointerDown={down}
-          onPointerMove={move}
-          onPointerUp={up}
-          onPointerLeave={up}
-        />
-        <div className="sigpad-actions">
-          <button type="button" className="btn" onClick={clear}>Clear</button>
-          <button type="button" className="btn primary" onClick={save}>Use signature</button>
-        </div>
+    <Modal
+      title="Draw your signature"
+      onClose={onCancel}
+      foot={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={clear}>Clear</button>
+          <button type="button" className="btn btn-primary" onClick={save} disabled={!hasInk}>Use signature</button>
+        </>
+      }
+    >
+      <div className="sig-pad">
+        <canvas ref={canvasRef} width={560} height={200} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up} />
+        {!hasInk && <div className="sig-hint">Sign here with your mouse or finger</div>}
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PDFDocument } from "pdf-lib";
 import { FileDrop, RunButton } from "@/components/pdfui";
-import { Segmented, TerminalWindow } from "@/components/ui";
+import { Banner, Segmented } from "@/components/ui";
 import { baseName, downloadBlob, openPdfjsDoc, parsePageRange, renderThumbnail } from "@/lib/pdf";
 
 interface Loaded {
@@ -21,7 +21,7 @@ export default function CropTool() {
   const [right, setRight] = useState(0);
   const [bottom, setBottom] = useState(0);
   const [left, setLeft] = useState(0);
-  const [allPages, setAllPages] = useState(true);
+  const [target, setTarget] = useState<"all" | "range">("all");
   const [range, setRange] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
@@ -51,16 +51,14 @@ export default function CropTool() {
     setNote(null);
     try {
       const pdf = await PDFDocument.load(doc.bytes, { ignoreEncryption: true });
-      const indices = allPages ? pdf.getPageIndices() : parsePageRange(range, doc.pages);
+      const indices = target === "all" ? pdf.getPageIndices() : parsePageRange(range, doc.pages);
       const pages = pdf.getPages();
       for (const idx of indices) {
         const page = pages[idx];
         const cb = page.getCropBox();
         const w = cb.width - left - right;
         const h = cb.height - top - bottom;
-        if (w <= 0 || h <= 0) {
-          throw new Error(`Crop too large for page ${idx + 1} (${Math.round(cb.width)}×${Math.round(cb.height)} pt).`);
-        }
+        if (w <= 0 || h <= 0) throw new Error(`Crop too large for page ${idx + 1} (${Math.round(cb.width)}×${Math.round(cb.height)} pt).`);
         page.setCropBox(cb.x + left, cb.y + bottom, w, h);
       }
       const out = await pdf.save();
@@ -76,60 +74,89 @@ export default function CropTool() {
 
   const pct = (v: number, total: number) => `${Math.max(0, Math.min(100, (v / total) * 100))}%`;
 
-  return (
-    <div>
-      <TerminalWindow title={<><b>crop</b> — source PDF</>} glow>
-        <FileDrop
-          accept="application/pdf"
-          multiple={false}
-          onFiles={load}
-          label={doc ? doc.name : "Drop a PDF here"}
-          hint={doc ? `${doc.pages} pages · page 1 is ${Math.round(doc.ptW)}×${Math.round(doc.ptH)} pt` : "single file — nothing is uploaded"}
-        />
-      </TerminalWindow>
+  if (!doc) {
+    return (
+      <FileDrop
+        accept="application/pdf"
+        multiple={false}
+        onFiles={load}
+        icon="crop"
+        title={<>Drop a PDF or <span className="em">browse</span></>}
+        sub="Trim margins from every page, with a live preview."
+      />
+    );
+  }
 
-      {doc && (
-        <>
-          <div className="opt-row">
-            <label className="opt"><span>top (pt)</span><input type="number" min={0} value={top} onChange={(e) => setTop(Number(e.target.value))} /></label>
-            <label className="opt"><span>right (pt)</span><input type="number" min={0} value={right} onChange={(e) => setRight(Number(e.target.value))} /></label>
-            <label className="opt"><span>bottom (pt)</span><input type="number" min={0} value={bottom} onChange={(e) => setBottom(Number(e.target.value))} /></label>
-            <label className="opt"><span>left (pt)</span><input type="number" min={0} value={left} onChange={(e) => setLeft(Number(e.target.value))} /></label>
-            <label className="opt">
-              <span>apply to</span>
-              <Segmented
-                value={allPages ? "all" : "range"}
-                onChange={(v) => setAllPages(v === "all")}
-                options={[{ value: "all", label: "All" }, { value: "range", label: "Range" }]}
-              />
-            </label>
-            {!allPages && (
-              <label className="opt"><span>pages</span><input type="text" value={range} onChange={(e) => setRange(e.target.value)} placeholder="e.g. 1-3" /></label>
+  const numField = (label: string, val: number, set: (n: number) => void) => (
+    <div className="field" style={{ marginBottom: 0 }}>
+      <label>{label}</label>
+      <input className="input" type="number" min={0} value={val} onChange={(e) => set(Number(e.target.value))} />
+    </div>
+  );
+
+  return (
+    <div className="stack" style={{ gap: "var(--s-5)" }}>
+      <div className="split-layout">
+        <div className="panel">
+          <div className="panel-title with-sub">{doc.name}</div>
+          <div className="panel-sub">{doc.pages} pages · page 1 is {Math.round(doc.ptW)}×{Math.round(doc.ptH)} pt</div>
+          <div className="field-row">
+            {numField("Top (pt)", top, setTop)}
+            {numField("Right (pt)", right, setRight)}
+          </div>
+          <div className="field-row" style={{ marginTop: "var(--s-4)" }}>
+            {numField("Bottom (pt)", bottom, setBottom)}
+            {numField("Left (pt)", left, setLeft)}
+          </div>
+          <div className="field" style={{ marginTop: "var(--s-5)", marginBottom: 0 }}>
+            <label>Apply to</label>
+            <Segmented
+              value={target}
+              onChange={setTarget}
+              options={[
+                { value: "all", label: "All pages" },
+                { value: "range", label: "Range" },
+              ]}
+            />
+            {target === "range" && (
+              <input className="input mono" style={{ marginTop: 8 }} value={range} onChange={(e) => setRange(e.target.value)} placeholder="e.g. 1-3" />
             )}
           </div>
+        </div>
 
-          <div className="crop-preview">
+        <div className="panel">
+          <div className="panel-title">Preview · page 1</div>
+          <div className="crop-preview" style={{ aspectRatio: `${doc.ptW} / ${doc.ptH}`, width: 260 }}>
             {/* eslint-disable-next-line @next/next/no-img-element -- local data-URL preview */}
-            <img src={doc.thumb} alt="page 1 preview" />
+            <img src={doc.thumb} alt="page 1 preview" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
             <div
-              className="crop-rect"
+              className="crop-box"
               style={{
                 left: pct(left, doc.ptW),
                 right: pct(right, doc.ptW),
                 top: pct(top, doc.ptH),
                 bottom: pct(bottom, doc.ptH),
+                boxShadow: "0 0 0 9999px var(--overlay)",
               }}
             />
           </div>
+        </div>
+      </div>
 
-          <div className="pdf-actions">
-            <RunButton onClick={run} busy={busy}>Crop &amp; download</RunButton>
-            <button type="button" className="btn" onClick={() => setDoc(null)} disabled={busy}>Clear</button>
-          </div>
-        </>
+      <div className="run-bar">
+        <RunButton onClick={run} busy={busy} icon="crop">
+          Crop &amp; download
+        </RunButton>
+        <button type="button" className="btn btn-ghost" onClick={() => setDoc(null)} disabled={busy}>
+          Choose another
+        </button>
+      </div>
+
+      {note && (
+        <Banner kind={note.kind === "ok" ? "success" : "error"} title={note.kind === "ok" ? "Done" : "Couldn't crop"}>
+          {note.msg}
+        </Banner>
       )}
-
-      {note && <div className={`pdf-note ${note.kind}`}>{note.msg}</div>}
     </div>
   );
 }

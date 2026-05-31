@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
 import { FileDrop, ProgressBar, RunButton } from "@/components/pdfui";
-import { Segmented, TerminalWindow } from "@/components/ui";
+import { Banner, Segmented } from "@/components/ui";
 import { baseName, downloadBlob, parsePageRange } from "@/lib/pdf";
 
 type Mode = "range" | "single" | "chunk";
@@ -56,7 +56,6 @@ export default function SplitTool() {
         downloadBlob(bytes, `${stem}-extract.pdf`);
         setNote({ kind: "ok", msg: `Extracted ${indices.length} pages → ${stem}-extract.pdf` });
       } else {
-        // Build groups of page indices.
         const groups: number[][] = [];
         const size = mode === "single" ? 1 : Math.max(1, chunk);
         for (let i = 0; i < doc.pages; i += size) {
@@ -85,69 +84,69 @@ export default function SplitTool() {
     }
   };
 
+  if (!doc) {
+    return (
+      <FileDrop
+        accept="application/pdf"
+        multiple={false}
+        onFiles={load}
+        title={<>Drop a PDF or <span className="em">browse</span></>}
+        sub="Pick the file you'd like to break apart."
+      />
+    );
+  }
+
   return (
-    <div>
-      <TerminalWindow title={<><b>split</b> — source PDF</>} glow>
-        <FileDrop
-          accept="application/pdf"
-          multiple={false}
-          onFiles={load}
-          label={doc ? doc.name : "Drop a PDF here"}
-          hint={doc ? `${doc.pages} pages loaded` : "single file — nothing is uploaded"}
-        />
-      </TerminalWindow>
+    <div className="stack" style={{ gap: "var(--s-5)" }}>
+      <div className="panel">
+        <div className="panel-title with-sub">{doc.name}</div>
+        <div className="panel-sub">{doc.pages} pages loaded</div>
 
-      {doc && (
-        <>
-          <div className="opt-row">
-            <Segmented
-              value={mode}
-              onChange={setMode}
-              options={[
-                { value: "range", label: "Extract range" },
-                { value: "single", label: "Each page" },
-                { value: "chunk", label: "Every N pages" },
-              ]}
-            />
-            {mode === "range" && (
-              <label className="opt">
-                <span>pages</span>
-                <input
-                  type="text"
-                  value={range}
-                  onChange={(e) => setRange(e.target.value)}
-                  placeholder="e.g. 1-3, 5, 8-10"
-                />
-              </label>
-            )}
-            {mode === "chunk" && (
-              <label className="opt">
-                <span>pages per file</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={doc.pages}
-                  value={chunk}
-                  onChange={(e) => setChunk(Math.max(1, Number(e.target.value)))}
-                />
-              </label>
-            )}
+        <div className="field">
+          <label>How would you like to split it?</label>
+          <Segmented
+            block
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: "range", label: "Extract range" },
+              { value: "single", label: "Each page" },
+              { value: "chunk", label: "Every N pages" },
+            ]}
+          />
+        </div>
+
+        {mode === "range" && (
+          <div className="field">
+            <label>Pages to extract</label>
+            <input className="input mono" value={range} onChange={(e) => setRange(e.target.value)} placeholder="e.g. 1-3, 5, 8-10" />
+            <span className="hint">Comma-separated pages and ranges.</span>
           </div>
-
-          <div className="pdf-actions">
-            <RunButton onClick={run} busy={busy}>
-              {mode === "range" ? "Extract pages" : "Split & download .zip"}
-            </RunButton>
-            <button type="button" className="btn" onClick={() => setDoc(null)} disabled={busy}>
-              Clear
-            </button>
+        )}
+        {mode === "chunk" && (
+          <div className="field">
+            <label>Pages per file</label>
+            <input className="input" type="number" min={1} max={doc.pages} value={chunk} onChange={(e) => setChunk(Math.max(1, Number(e.target.value)))} />
           </div>
+        )}
+      </div>
 
-          {busy && mode !== "range" && <ProgressBar value={progress} />}
-        </>
+      {busy && mode !== "range" && <ProgressBar value={progress} label="Splitting" />}
+
+      <div className="run-bar">
+        <RunButton onClick={run} busy={busy} icon={mode === "range" ? "split" : "download"}>
+          {mode === "range" ? "Extract pages" : "Split & download .zip"}
+        </RunButton>
+        <button type="button" className="btn btn-ghost" onClick={() => setDoc(null)} disabled={busy}>
+          Choose another
+        </button>
+      </div>
+
+      {note && (
+        <Banner kind={note.kind === "ok" ? "success" : "error"} title={note.kind === "ok" ? "Done" : "Couldn't split"}>
+          {note.msg}
+        </Banner>
       )}
-
-      {note && <div className={`pdf-note ${note.kind}`}>{note.msg}</div>}
     </div>
   );
 }

@@ -12,50 +12,38 @@ import FormFillTool from "@/components/tools/FormFillTool";
 import CropTool from "@/components/tools/CropTool";
 import CompressTool from "@/components/tools/CompressTool";
 
-export type Category = "Organize & merge" | "Edit & sign" | "Convert" | "Optimize";
+export type Category = "Organize" | "Convert" | "Edit & Sign" | "Optimize";
 
 export interface Tool {
   id: string;
   name: string;
+  /** Short card/blurb line. */
   description: string;
+  /** Friendly tagline shown in the tool header. */
+  tagline: string;
   category: Category;
-  /** Short monospace glyph shown in the nav / cards. */
-  glyph: string;
-  /** All tools are genuinely functional; flagged "live" in the UI. */
-  live: boolean;
+  /** Icon name from the design icon set. */
+  icon: string;
   Component: ComponentType;
 }
 
-export const CATEGORIES: Category[] = [
-  "Organize & merge",
-  "Edit & sign",
-  "Convert",
-  "Optimize",
-];
-
-/** Short path-style abbreviation per category (e.g. ~/org). */
-export const CAT_ABBR: Record<Category, string> = {
-  "Organize & merge": "org",
-  "Edit & sign": "edit",
-  Convert: "conv",
-  Optimize: "opt",
-};
+export const CATEGORIES: Category[] = ["Organize", "Convert", "Edit & Sign", "Optimize"];
 
 export const TOOLS: Tool[] = [
-  // Organize & merge
-  { id: "merge", name: "Merge PDF", description: "Combine multiple PDFs into one, in any order", category: "Organize & merge", glyph: "⧉", live: true, Component: MergeTool },
-  { id: "split", name: "Split PDF", description: "Extract a page range or split into single pages", category: "Organize & merge", glyph: "✂", live: true, Component: SplitTool },
-  { id: "organize", name: "Organize Pages", description: "Reorder, rotate & delete pages visually", category: "Organize & merge", glyph: "▦", live: true, Component: OrganizeTool },
-  { id: "rotate", name: "Rotate PDF", description: "Rotate all or selected pages", category: "Organize & merge", glyph: "↻", live: true, Component: RotateTool },
-  { id: "crop", name: "Crop PDF", description: "Trim margins from pages with a live preview", category: "Organize & merge", glyph: "▭", live: true, Component: CropTool },
-  // Edit & sign
-  { id: "page-numbers", name: "Page Numbers", description: "Stamp page numbers in any corner", category: "Edit & sign", glyph: "#", live: true, Component: PageNumbersTool },
-  { id: "watermark", name: "Watermark", description: "Overlay a text or image watermark", category: "Edit & sign", glyph: "❖", live: true, Component: WatermarkTool },
-  { id: "fill-sign", name: "Fill & Sign", description: "Add text & a signature, then place them", category: "Edit & sign", glyph: "✎", live: true, Component: FillSignTool },
-  { id: "fill-forms", name: "Fill Forms", description: "Fill native AcroForm form fields", category: "Edit & sign", glyph: "▤", live: true, Component: FormFillTool },
+  // Organize
+  { id: "merge", name: "Merge PDF", description: "Combine multiple PDFs into one tidy document.", tagline: "Drop your PDFs, drag to reorder, and merge.", category: "Organize", icon: "merge", Component: MergeTool },
+  { id: "split", name: "Split PDF", description: "Separate one PDF into several files or ranges.", tagline: "Choose how you'd like to break it apart.", category: "Organize", icon: "split", Component: SplitTool },
+  { id: "organize", name: "Organize Pages", description: "Reorder, rotate, and delete pages visually.", tagline: "Rearrange, rotate, or remove any page.", category: "Organize", icon: "organize", Component: OrganizeTool },
+  { id: "rotate", name: "Rotate PDF", description: "Turn pages to the right orientation.", tagline: "Rotate all pages or just a range.", category: "Organize", icon: "rotate", Component: RotateTool },
   // Convert
-  { id: "pdf-to-jpg", name: "PDF → Image", description: "Render each page to JPG or PNG", category: "Convert", glyph: "⊞", live: true, Component: PdfToImageTool },
-  { id: "jpg-to-pdf", name: "Image → PDF", description: "Combine JPG / PNG images into one PDF", category: "Convert", glyph: "⊟", live: true, Component: ImageToPdfTool },
+  { id: "pdf-to-jpg", name: "PDF → Image", description: "Export each page as a PNG or JPG.", tagline: "Pick a format and quality — we'll do the rest.", category: "Convert", icon: "pdf2img", Component: PdfToImageTool },
+  { id: "jpg-to-pdf", name: "Image → PDF", description: "Turn photos and scans into a PDF.", tagline: "Combine images into one PDF, in order.", category: "Convert", icon: "img2pdf", Component: ImageToPdfTool },
+  // Edit & Sign
+  { id: "fill-sign", name: "Fill & Sign", description: "Add text, dates, and your signature.", tagline: "Place text and your signature, then save.", category: "Edit & Sign", icon: "sign", Component: FillSignTool },
+  { id: "watermark", name: "Watermark", description: "Stamp text or a logo across pages.", tagline: "Overlay text or an image on every page.", category: "Edit & Sign", icon: "watermark", Component: WatermarkTool },
+  { id: "page-numbers", name: "Page Numbers", description: "Add page numbers in any position.", tagline: "Stamp page numbers in any corner.", category: "Edit & Sign", icon: "numbers", Component: PageNumbersTool },
+  { id: "crop", name: "Crop PDF", description: "Trim margins and tidy up the frame.", tagline: "Trim margins with a live preview.", category: "Edit & Sign", icon: "crop", Component: CropTool },
+  { id: "fill-forms", name: "Fill Forms", description: "Fill native AcroForm form fields.", tagline: "We detected the form fields — just type.", category: "Edit & Sign", icon: "forms", Component: FormFillTool },
   // Optimize
-  { id: "compress", name: "Compress PDF", description: "Shrink file size by re-encoding pages", category: "Optimize", glyph: "⇊", live: true, Component: CompressTool },
+  { id: "compress", name: "Compress PDF", description: "Shrink file size while keeping it crisp.", tagline: "We'll find the sweet spot between size and quality.", category: "Optimize", icon: "compress", Component: CompressTool },
 ];

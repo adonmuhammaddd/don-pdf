@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Prebuilt pdf.js worker copied into /public — not our source.
     "public/**",
+    // Design handoff working artifacts (local only).
+    "_design_handoff/**",
   ]),
 ]);
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { degrees, PDFDocument } from "pdf-lib";
 import { FileDrop, RunButton } from "@/components/pdfui";
-import { Segmented, TerminalWindow } from "@/components/ui";
+import { Banner, Segmented } from "@/components/ui";
 import { baseName, downloadBlob, parsePageRange } from "@/lib/pdf";
 
 interface Loaded {
@@ -12,12 +12,11 @@ interface Loaded {
   pages: number;
 }
 type Angle = "90" | "180" | "270";
-type Target = "all" | "range";
 
 export default function RotateTool() {
   const [doc, setDoc] = useState<Loaded | null>(null);
   const [angle, setAngle] = useState<Angle>("90");
-  const [target, setTarget] = useState<Target>("all");
+  const [target, setTarget] = useState<"all" | "range">("all");
   const [range, setRange] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
@@ -43,10 +42,7 @@ export default function RotateTool() {
     try {
       const pdf = await PDFDocument.load(doc.bytes, { ignoreEncryption: true });
       const delta = Number(angle);
-      const indices =
-        target === "all"
-          ? pdf.getPageIndices()
-          : parsePageRange(range, doc.pages);
+      const indices = target === "all" ? pdf.getPageIndices() : parsePageRange(range, doc.pages);
       const pages = pdf.getPages();
       for (const i of indices) {
         const current = pages[i].getRotation().angle;
@@ -55,10 +51,7 @@ export default function RotateTool() {
       const out = await pdf.save();
       const stem = baseName(doc.name);
       downloadBlob(out, `${stem}-rotated.pdf`);
-      setNote({
-        kind: "ok",
-        msg: `Rotated ${indices.length} page${indices.length === 1 ? "" : "s"} by ${delta}° → ${stem}-rotated.pdf`,
-      });
+      setNote({ kind: "ok", msg: `Rotated ${indices.length} page${indices.length === 1 ? "" : "s"} by ${delta}° → ${stem}-rotated.pdf` });
     } catch (e) {
       setNote({ kind: "err", msg: `Rotate failed: ${(e as Error).message}` });
     } finally {
@@ -66,69 +59,70 @@ export default function RotateTool() {
     }
   };
 
+  if (!doc) {
+    return (
+      <FileDrop
+        accept="application/pdf"
+        multiple={false}
+        onFiles={load}
+        title={<>Drop a PDF or <span className="em">browse</span></>}
+        sub="We'll rotate the pages you choose."
+        icon="rotate"
+      />
+    );
+  }
+
   return (
-    <div>
-      <TerminalWindow title={<><b>rotate</b> — source PDF</>} glow>
-        <FileDrop
-          accept="application/pdf"
-          multiple={false}
-          onFiles={load}
-          label={doc ? doc.name : "Drop a PDF here"}
-          hint={doc ? `${doc.pages} pages loaded` : "single file — nothing is uploaded"}
-        />
-      </TerminalWindow>
+    <div className="stack" style={{ gap: "var(--s-5)" }}>
+      <div className="panel">
+        <div className="panel-title with-sub">{doc.name}</div>
+        <div className="panel-sub">{doc.pages} pages loaded</div>
 
-      {doc && (
-        <>
-          <div className="opt-row">
-            <label className="opt">
-              <span>rotate clockwise</span>
-              <Segmented
-                value={angle}
-                onChange={setAngle}
-                options={[
-                  { value: "90", label: "90°" },
-                  { value: "180", label: "180°" },
-                  { value: "270", label: "270°" },
-                ]}
-              />
-            </label>
-            <label className="opt">
-              <span>apply to</span>
-              <Segmented
-                value={target}
-                onChange={setTarget}
-                options={[
-                  { value: "all", label: "All pages" },
-                  { value: "range", label: "Range" },
-                ]}
-              />
-            </label>
-            {target === "range" && (
-              <label className="opt">
-                <span>pages</span>
-                <input
-                  type="text"
-                  value={range}
-                  onChange={(e) => setRange(e.target.value)}
-                  placeholder="e.g. 1-3, 5"
-                />
-              </label>
-            )}
+        <div className="field">
+          <label>Rotate clockwise by</label>
+          <Segmented
+            value={angle}
+            onChange={setAngle}
+            options={[
+              { value: "90", label: "90°" },
+              { value: "180", label: "180°" },
+              { value: "270", label: "270°" },
+            ]}
+          />
+        </div>
+        <div className="field">
+          <label>Apply to</label>
+          <Segmented
+            value={target}
+            onChange={setTarget}
+            options={[
+              { value: "all", label: "All pages" },
+              { value: "range", label: "Page range" },
+            ]}
+          />
+        </div>
+        {target === "range" && (
+          <div className="field">
+            <label>Pages</label>
+            <input className="input mono" value={range} onChange={(e) => setRange(e.target.value)} placeholder="e.g. 1-3, 5" />
           </div>
+        )}
+      </div>
 
-          <div className="pdf-actions">
-            <RunButton onClick={run} busy={busy}>
-              Rotate &amp; download
-            </RunButton>
-            <button type="button" className="btn" onClick={() => setDoc(null)} disabled={busy}>
-              Clear
-            </button>
-          </div>
-        </>
+      <div className="run-bar">
+        <RunButton onClick={run} busy={busy} icon="rotate">
+          Rotate &amp; download
+        </RunButton>
+        <button type="button" className="btn btn-ghost" onClick={() => setDoc(null)} disabled={busy}>
+          Choose another
+        </button>
+      </div>
+
+      {note && (
+        <Banner kind={note.kind === "ok" ? "success" : "error"} title={note.kind === "ok" ? "Done" : "Couldn't rotate"}>
+          {note.msg}
+        </Banner>
       )}
-
-      {note && <div className={`pdf-note ${note.kind}`}>{note.msg}</div>}
     </div>
   );
 }

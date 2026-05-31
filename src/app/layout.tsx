@@ -1,37 +1,39 @@
 import type { Metadata } from "next";
-import "./fonts.css";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./tokens.css";
-import "./terminal.css";
-import "./pdf.css";
+import "./shell.css";
+import "./components.css";
+import "./controls.css";
+import "./home.css";
 
 export const metadata: Metadata = {
-  title: "DonPDF — privacy-first PDF tools",
+  title: "DonPDF — private, in-browser PDF tools",
   description:
-    "A local, privacy-first PDF toolkit in a retro terminal UI — merge, split, organize, rotate, and convert PDFs entirely in your browser. Your files never leave your device, no uploads, no tracking.",
+    "Merge, split, organize, sign, watermark, convert and compress PDFs — entirely in your browser. Your files never leave your device: no uploads, no sign-up, no tracking.",
 };
 
-// Applied before paint to avoid a theme flash / hydration mismatch on <html>.
+// Set the theme before paint to avoid a flash / hydration mismatch on <html>.
 const themeBootstrap = `(function(){try{
-  var d=document.documentElement, s=localStorage;
-  d.setAttribute('data-theme', s.getItem('dpdf:theme')||'light');
-  d.setAttribute('data-accent', s.getItem('dpdf:accent')||'amber');
-  d.setAttribute('data-glow', (s.getItem('dpdf:glow')||'on'));
-  d.setAttribute('data-blink', (s.getItem('dpdf:blink')||'on'));
-  var sl=s.getItem('dpdf:scanlines'); if(sl!=null) d.style.setProperty('--scanline-opacity',(parseInt(sl,10)/100).toFixed(3));
+  var t=localStorage.getItem('dpdf:theme')||'light';
+  document.documentElement.setAttribute('data-theme', t);
 }catch(e){}})();`;
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" data-theme="light" data-accent="amber" suppressHydrationWarning>
+    <html
+      lang="en"
+      data-theme="light"
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
       </head>
       <body>
-        {children}
-        <div id="scanlines" aria-hidden="true" />
-        <div id="vignette" aria-hidden="true" />
+        <div id="root">{children}</div>
       </body>
     </html>
   );

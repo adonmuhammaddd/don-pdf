@@ -5,21 +5,26 @@ import { cx, Icon } from "@/components/ui";
 import { formatBytes } from "@/lib/pdf";
 
 /* ---------------- Drop zone ---------------- */
-
 export function FileDrop({
   accept,
   multiple = true,
   onFiles,
-  hint,
-  label = "Drop files here",
+  title,
+  sub,
+  icon = "upload",
+  compact,
+  hint = "Files never leave your device",
 }: {
-  accept: string; // e.g. "application/pdf" or "image/*"
+  accept: string;
   multiple?: boolean;
   onFiles: (files: File[]) => void;
-  hint?: ReactNode;
-  label?: string;
+  title?: ReactNode;
+  sub?: ReactNode;
+  icon?: string;
+  compact?: boolean;
+  hint?: ReactNode | null;
 }) {
-  const [drag, setDrag] = useState(false);
+  const [over, setOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const pick = useCallback(
@@ -32,22 +37,25 @@ export function FileDrop({
 
   return (
     <div
-      className={cx("dropzone", drag && "drag")}
+      className={cx("dropzone", over && "over", compact && "sm")}
+      onClick={() => inputRef.current?.click()}
       onDragOver={(e) => {
         e.preventDefault();
-        setDrag(true);
+        setOver(true);
       }}
-      onDragLeave={() => setDrag(false)}
+      onDragLeave={() => setOver(false)}
       onDrop={(e) => {
         e.preventDefault();
-        setDrag(false);
+        setOver(false);
         pick(e.dataTransfer.files);
       }}
-      onClick={() => inputRef.current?.click()}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          inputRef.current?.click();
+        }
       }}
     >
       <input
@@ -58,20 +66,35 @@ export function FileDrop({
         hidden
         onChange={(e) => {
           pick(e.target.files);
-          e.target.value = ""; // allow re-selecting the same file
+          e.target.value = "";
         }}
       />
-      <div className="dropzone-glyph" aria-hidden="true">
-        <Icon name="dl" size={26} />
+      <div className="dz-glyph">
+        <Icon name={icon} size={compact ? 26 : 32} strokeWidth={1.6} />
       </div>
-      <div className="dropzone-label">{label}</div>
-      <div className="dropzone-hint">{hint ?? "or click to browse — nothing is uploaded"}</div>
+      <div className="stack" style={{ gap: 6, alignItems: "center" }}>
+        <div className="dz-title">
+          {title ?? (
+            <>
+              Drop files or <span className="em">browse</span>
+            </>
+          )}
+        </div>
+        <div className="dz-sub">
+          {sub ?? `Drag & drop ${multiple ? "files" : "a file"} here, or click to choose.`}
+        </div>
+      </div>
+      {hint !== null && (
+        <div className="dz-hint">
+          <Icon name="lock" size={13} strokeWidth={2} />
+          {hint}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ---------------- Reorderable file list ---------------- */
-
 export interface NamedFile {
   id: string;
   file: File;
@@ -90,94 +113,130 @@ export function FileList({
 }) {
   if (items.length === 0) return null;
   return (
-    <ul className="file-list">
+    <div className="file-list">
       {items.map((it, i) => (
-        <li className="file-row" key={it.id}>
+        <div className="file-row" key={it.id}>
           <span className="file-idx">{i + 1}</span>
-          <span className="file-name" title={it.file.name}>
-            {it.file.name}
+          <span className="file-thumb">
+            <Icon name="file" size={18} />
           </span>
-          <span className="file-meta">{meta ? meta(it, i) : formatBytes(it.file.size)}</span>
-          {onMove && (
-            <span className="file-move">
-              <button
-                type="button"
-                disabled={i === 0}
-                onClick={() => onMove(it.id, -1)}
-                aria-label="Move up"
-                title="Move up"
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                disabled={i === items.length - 1}
-                onClick={() => onMove(it.id, 1)}
-                aria-label="Move down"
-                title="Move down"
-              >
-                ↓
-              </button>
-            </span>
-          )}
-          <button
-            type="button"
-            className="file-x"
-            onClick={() => onRemove(it.id)}
-            aria-label="Remove"
-            title="Remove"
-          >
-            <Icon name="x" size={13} />
-          </button>
-        </li>
+          <div className="file-meta">
+            <div className="file-name" title={it.file.name}>
+              {it.file.name}
+            </div>
+            <div className="file-info">{meta ? meta(it, i) : <span className="mono">{formatBytes(it.file.size)}</span>}</div>
+          </div>
+          <div className="row-actions">
+            {onMove && (
+              <div className="reorder-btns">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  disabled={i === 0}
+                  onClick={() => onMove(it.id, -1)}
+                  aria-label="Move up"
+                >
+                  <Icon name="arrowUp" size={14} strokeWidth={2} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  disabled={i === items.length - 1}
+                  onClick={() => onMove(it.id, 1)}
+                  aria-label="Move down"
+                >
+                  <Icon name="arrowDown" size={14} strokeWidth={2} />
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              className="icon-btn danger"
+              onClick={() => onRemove(it.id)}
+              aria-label="Remove"
+            >
+              <Icon name="trash" size={16} />
+            </button>
+          </div>
+        </div>
       ))}
-    </ul>
-  );
-}
-
-/* ---------------- Progress bar ---------------- */
-
-export function ProgressBar({ value, label }: { value: number; label?: string }) {
-  const pct = Math.max(0, Math.min(100, Math.round(value * 100)));
-  return (
-    <div className="pbar-wrap">
-      <div className="pbar">
-        <div className="pbar-fill" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="pbar-label">{label ?? `${pct}%`}</span>
     </div>
   );
 }
 
-/* ---------------- Run / action button ---------------- */
+/* ---------------- Progress bar ---------------- */
+export function ProgressBar({ value, label }: { value: number; label?: string }) {
+  const pct = Math.max(0, Math.min(100, Math.round(value * 100)));
+  return (
+    <div>
+      <div className="progress-label">
+        <span>{label ?? "Working…"}</span>
+        <span className="mono">{pct}%</span>
+      </div>
+      <div className="progress">
+        <div className="progress-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
 
+/* ---------------- Run / primary action button ---------------- */
 export function RunButton({
   onClick,
   busy,
   disabled,
+  icon = "bolt",
+  block,
   children,
 }: {
   onClick: () => void;
   busy?: boolean;
   disabled?: boolean;
+  icon?: string;
+  block?: boolean;
   children: ReactNode;
 }) {
   return (
     <button
       type="button"
-      className="btn primary run-btn"
+      className={cx("btn", "btn-primary", "btn-lg", block && "btn-block")}
       onClick={onClick}
       disabled={busy || disabled}
     >
       {busy ? (
         <>
-          <span className="spin" aria-hidden="true" /> working…
+          <span className="btn-spinner" aria-hidden="true" /> Working…
         </>
       ) : (
         <>
-          <Icon name="play" size={13} /> {children}
+          <Icon name={icon} size={17} /> {children}
         </>
       )}
     </button>
+  );
+}
+
+/* ---------------- Mascot empty / success / error state ---------------- */
+export function MascotState({
+  variant = "default",
+  title,
+  children,
+  action,
+}: {
+  variant?: "default" | "success" | "oops";
+  title: ReactNode;
+  children?: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="empty-state">
+      <div className={cx("mascot-frame", variant !== "default" && variant)}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- small static mascot */}
+        <img src="/mascot.png" alt="DonPDF mascot" />
+      </div>
+      <h3>{title}</h3>
+      {children && <p>{children}</p>}
+      {action}
+    </div>
   );
 }

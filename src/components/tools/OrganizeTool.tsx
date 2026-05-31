@@ -3,20 +3,20 @@
 import { useState } from "react";
 import { degrees, PDFDocument } from "pdf-lib";
 import { FileDrop, ProgressBar, RunButton } from "@/components/pdfui";
-import { TerminalWindow } from "@/components/ui";
+import { Banner, Icon, cx } from "@/components/ui";
 import { baseName, downloadBlob, openPdfjsDoc, renderThumbnail } from "@/lib/pdf";
 
 interface PageItem {
   key: string;
-  idx: number; // original 0-based page index
-  baseRot: number; // rotation already on the page
-  rot: number; // added rotation (cw)
+  idx: number;
+  baseRot: number;
+  rot: number;
   deleted: boolean;
   thumb: string;
 }
 
 export default function OrganizeTool() {
-  const [name, setName] = useState<string>("");
+  const [name, setName] = useState("");
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
   const [pages, setPages] = useState<PageItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ export default function OrganizeTool() {
       const total = doc.numPages;
       const items: PageItem[] = [];
       for (let i = 1; i <= total; i++) {
-        const { url } = await renderThumbnail(doc, i, 150);
+        const { url } = await renderThumbnail(doc, i, 200);
         items.push({
           key: `${i}-${Math.random().toString(36).slice(2)}`,
           idx: i - 1,
@@ -98,8 +98,7 @@ export default function OrganizeTool() {
       const kept = pages.filter((p) => !p.deleted);
       const copied = await out.copyPages(src, kept.map((p) => p.idx));
       copied.forEach((pg, i) => {
-        const total = (kept[i].baseRot + kept[i].rot) % 360;
-        pg.setRotation(degrees(total));
+        pg.setRotation(degrees((kept[i].baseRot + kept[i].rot) % 360));
         out.addPage(pg);
       });
       const result = await out.save();
@@ -113,77 +112,78 @@ export default function OrganizeTool() {
     }
   };
 
+  if (pages.length === 0) {
+    return (
+      <div className="stack" style={{ gap: "var(--s-5)" }}>
+        <FileDrop
+          accept="application/pdf"
+          multiple={false}
+          onFiles={load}
+          icon="organize"
+          title={loading ? "Rendering pages…" : <>Drop a PDF or <span className="em">browse</span></>}
+          sub={loading ? "One moment." : "Reorder, rotate, and delete pages, then export."}
+        />
+        {loading && <ProgressBar value={progress} label="Loading pages" />}
+        {note && <Banner kind="error">{note.msg}</Banner>}
+      </div>
+    );
+  }
+
   return (
-    <div>
-      {pages.length === 0 && (
-        <TerminalWindow title={<><b>organize</b> — source PDF</>} glow>
-          <FileDrop
-            accept="application/pdf"
-            multiple={false}
-            onFiles={load}
-            label={loading ? "Rendering pages…" : "Drop a PDF here"}
-            hint={loading ? undefined : "reorder, rotate & delete pages — nothing is uploaded"}
-          />
-          {loading && <ProgressBar value={progress} label="loading" />}
-        </TerminalWindow>
-      )}
+    <div className="stack" style={{ gap: "var(--s-5)" }}>
+      <div className="run-bar" style={{ marginTop: 0 }}>
+        <RunButton onClick={run} busy={busy} icon="download">
+          Export {keptCount} page{keptCount === 1 ? "" : "s"}
+        </RunButton>
+        <button type="button" className="btn btn-ghost" onClick={reset} disabled={busy}>
+          Load another
+        </button>
+        <span className="note">{name} · {pages.length} pages</span>
+      </div>
 
-      {pages.length > 0 && (
-        <>
-          <div className="pdf-actions" style={{ marginTop: 0 }}>
-            <RunButton onClick={run} busy={busy}>
-              Export {keptCount} page{keptCount === 1 ? "" : "s"}
-            </RunButton>
-            <button type="button" className="btn" onClick={reset} disabled={busy}>
-              Load another
-            </button>
-            <span style={{ color: "var(--text-2)", fontSize: "var(--fs-sm)" }}>
-              {name} · {pages.length} pages
-            </span>
-          </div>
-
-          <div className="page-grid">
-            {pages.map((p, i) => (
-              <div className={`page-cell${p.deleted ? " del" : ""}`} key={p.key}>
-                {(p.baseRot + p.rot) % 360 !== 0 && (
-                  <span className="page-rot">{(p.baseRot + p.rot) % 360}°</span>
-                )}
+      <div className="page-grid">
+        {pages.map((p, i) => {
+          const total = (p.baseRot + p.rot) % 360;
+          return (
+            <div className={cx("page-card", p.deleted && "deleted")} key={p.key}>
+              {total !== 0 && <span className="pc-badge">{total}°</span>}
+              {p.deleted && <span className="pc-flag">removed</span>}
+              <div className="pc-sheet">
                 {/* eslint-disable-next-line @next/next/no-img-element -- local data-URL thumbnail */}
                 <img
-                  className="page-thumb"
                   src={p.thumb}
                   alt={`Page ${p.idx + 1}`}
-                  style={{ transform: `rotate(${p.rot}deg)` }}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", transform: p.rot ? `rotate(${p.rot}deg)` : undefined }}
                 />
-                <span className="page-no">
-                  #{i + 1} <span style={{ color: "var(--text-2)" }}>(p{p.idx + 1})</span>
-                </span>
-                <div className="page-ops">
-                  <button type="button" onClick={() => move(p.key, -1)} disabled={i === 0} title="Move left">
-                    ←
+                <div className="pc-overlay">
+                  <button type="button" className="icon-btn" onClick={() => move(p.key, -1)} disabled={i === 0} aria-label="Move left">
+                    <Icon name="chevronRight" size={16} style={{ transform: "rotate(180deg)" }} />
                   </button>
-                  <button type="button" onClick={() => rotate(p.key)} title="Rotate 90°">
-                    ↻
+                  <button type="button" className="icon-btn" onClick={() => rotate(p.key)} aria-label="Rotate">
+                    <Icon name="rotate" size={16} />
                   </button>
-                  <button type="button" onClick={() => toggleDelete(p.key)} title={p.deleted ? "Restore" : "Delete"}>
-                    {p.deleted ? "↺" : "✕"}
+                  <button type="button" className="icon-btn danger" onClick={() => toggleDelete(p.key)} aria-label={p.deleted ? "Restore" : "Delete"}>
+                    <Icon name={p.deleted ? "undo" : "trash"} size={16} />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => move(p.key, 1)}
-                    disabled={i === pages.length - 1}
-                    title="Move right"
-                  >
-                    →
+                  <button type="button" className="icon-btn" onClick={() => move(p.key, 1)} disabled={i === pages.length - 1} aria-label="Move right">
+                    <Icon name="chevronRight" size={16} />
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
-        </>
-      )}
+              <div className="pc-bar">
+                <span>#{i + 1}</span>
+                <span>p{p.idx + 1}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-      {note && <div className={`pdf-note ${note.kind}`}>{note.msg}</div>}
+      {note && (
+        <Banner kind={note.kind === "ok" ? "success" : "error"} title={note.kind === "ok" ? "Done" : "Couldn't export"}>
+          {note.msg}
+        </Banner>
+      )}
     </div>
   );
 }

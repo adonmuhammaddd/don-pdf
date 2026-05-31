@@ -8,24 +8,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { CATEGORIES, CAT_ABBR, TOOLS } from "@/components/registry";
+import { CATEGORIES, TOOLS, type Tool } from "@/components/registry";
 import Welcome from "@/components/Welcome";
-import {
-  Badge,
-  Icon,
-  Mascot,
-  MASCOT_AVATAR,
-  ToastHost,
-} from "@/components/ui";
-import { EthicalAd } from "@/components/EthicalAd";
-import { useTweaks } from "@/lib/useTweaks";
+import { Icon, ToastHost, cx } from "@/components/ui";
+import { useTheme } from "@/lib/theme";
+
+const WIDE = new Set(["organize", "fill-sign", "pdf-to-jpg"]);
 
 function useRoute(): [string, (id: string) => void] {
-  const get = () =>
-    (typeof window === "undefined" ? "home" : window.location.hash.replace(/^#/, "")) ||
-    "home";
   const [route, setRoute] = useState("home");
   useEffect(() => {
+    const get = () => window.location.hash.replace(/^#/, "") || "home";
     const on = () => setRoute(get());
     on();
     window.addEventListener("hashchange", on);
@@ -38,89 +31,68 @@ function useRoute(): [string, (id: string) => void] {
 }
 
 export default function AppShell() {
-  const { tweaks, set } = useTweaks();
+  const [theme, toggleTheme] = useTheme();
   const [route, go] = useRoute();
-  const [query, setQuery] = useState("");
-  const [drawer, setDrawer] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const [navOpen, setNavOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
 
-  // ⌘K / Ctrl+K → open drawer + focus search.
+  const nav = useCallback(
+    (id: string) => {
+      go(id);
+      setNavOpen(false);
+      if (mainRef.current) mainRef.current.scrollTop = 0;
+    },
+    [go],
+  );
+
+  // ⌘K / Ctrl+K → focus the sidebar search (open the drawer on mobile first).
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setDrawer(true);
-        setTimeout(() => searchRef.current?.focus(), 30);
+        setNavOpen(true);
+        setTimeout(() => document.querySelector<HTMLInputElement>(".search input")?.focus(), 30);
       }
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
   }, []);
 
-  const nav = useCallback(
-    (id: string) => {
-      go(id);
-      setDrawer(false);
-    },
-    [go],
-  );
-
   const tool = TOOLS.find((t) => t.id === route);
   const isHome = route === "home";
-  const path = isHome
-    ? "~/don-pdf — zsh"
-    : tool
-      ? `~/don-pdf/${tool.id} — zsh`
-      : "~/don-pdf/404 — zsh";
 
   return (
-    <div className={`app ${drawer ? "drawer-open" : ""}`}>
-      <div className="backdrop" onClick={() => setDrawer(false)} />
-
+    <div className="app">
       <Sidebar
         route={route}
         nav={nav}
-        query={query}
-        setQuery={setQuery}
-        searchRef={searchRef}
+        theme={theme}
+        toggleTheme={toggleTheme}
+        open={navOpen}
       />
+      <div className={cx("scrim", navOpen && "show")} onClick={() => setNavOpen(false)} />
 
-      <main className="main">
-        <div className="topbar">
-          <button className="menu-btn" onClick={() => setDrawer(true)} aria-label="menu">
-            <Icon name="menu" />
+      <main className="main" ref={mainRef}>
+        <div className="mobile-bar">
+          <button className="icon-btn" onClick={() => setNavOpen(true)} aria-label="Menu">
+            <Icon name="menu" size={20} />
           </button>
-          <div className="lights">
-            <i className="r" />
-            <i className="y" />
-            <i className="g" />
-          </div>
-          <span className="tabpath">
-            {path.split("—")[0]}
-            <b>—{path.split("—")[1]}</b>
-          </span>
-          <span className="spacer" />
-          <NavTweaks
-            theme={tweaks.theme}
-            setTheme={(v) => set("theme", v)}
-            accent={tweaks.accent}
-            setAccent={(v) => set("accent", v)}
-          />
-          <div className="keyhint">
-            <span>
-              <b>⌘K</b> search
-            </span>
-            <span>
-              <b>❯</b>{" "}
-              {isHome ? "home" : tool ? tool.category.split(" ")[0].toLowerCase() : "unknown"}
-            </span>
+          <div className="sb-wordmark">
+            Don<b>PDF</b>
           </div>
         </div>
 
-        <div className="content">
+        <div className="main-scroll">
           {isHome && <Welcome go={nav} />}
-          {!isHome && tool && <ToolView tool={tool} />}
-          {!isHome && !tool && <NotFound route={route} go={nav} />}
+          {!isHome && tool && (
+            <>
+              <ToolHeader tool={tool} />
+              <div className={cx("tool-body", WIDE.has(tool.id) && "wide")}>
+                <tool.Component />
+              </div>
+            </>
+          )}
+          {!isHome && !tool && <NotFound go={nav} />}
         </div>
       </main>
 
@@ -129,57 +101,25 @@ export default function AppShell() {
   );
 }
 
-/* ---------------- Navbar tweaks (theme + accent) ---------------- */
-function NavTweaks({
-  theme,
-  setTheme,
-  accent,
-  setAccent,
-}: {
-  theme: "dark" | "light";
-  setTheme: (v: "dark" | "light") => void;
-  accent: "green" | "amber";
-  setAccent: (v: "green" | "amber") => void;
-}) {
+/* ---------------- Brand mark ---------------- */
+function BrandLogo() {
   return (
-    <div className="nav-tweaks">
-      <div className="nav-toggle" role="group" aria-label="Theme">
-        <button
-          className={theme === "light" ? "on" : ""}
-          onClick={() => setTheme("light")}
-          aria-label="Light theme"
-          title="Light"
-        >
-          <Icon name="sun" size={13} />
-        </button>
-        <button
-          className={theme === "dark" ? "on" : ""}
-          onClick={() => setTheme("dark")}
-          aria-label="Dark theme"
-          title="Dark"
-        >
-          <Icon name="moon" size={13} />
-        </button>
-      </div>
-      <div className="nav-toggle nav-toggle-acc" role="group" aria-label="Accent">
-        <button
-          className={accent === "green" ? "on" : ""}
-          onClick={() => setAccent("green")}
-          aria-label="Green accent"
-          title="Green"
-        >
-          <span className="acc-dot acc-green" />
-        </button>
-        <button
-          className={accent === "amber" ? "on" : ""}
-          onClick={() => setAccent("amber")}
-          aria-label="Amber accent"
-          title="Amber"
-        >
-          <span className="acc-dot acc-amber" />
-        </button>
-      </div>
-    </div>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M6 3.2h8l4.8 4.8V20a.8.8 0 0 1-.8.8H6a.8.8 0 0 1-.8-.8V4a.8.8 0 0 1 .8-.8Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path d="M13.6 3.4V8.4h4.8" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path
+        d="M8.4 13.2h2.1a1.6 1.6 0 0 1 0 3.2H8.4v-3.2Zm0 0V18"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -187,180 +127,158 @@ function NavTweaks({
 function Sidebar({
   route,
   nav,
-  query,
-  setQuery,
-  searchRef,
+  theme,
+  toggleTheme,
+  open,
 }: {
   route: string;
   nav: (id: string) => void;
-  query: string;
-  setQuery: (v: string) => void;
-  searchRef: React.RefObject<HTMLInputElement | null>;
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+  open: boolean;
 }) {
-  const q = query.trim().toLowerCase();
-  const filtered = useMemo(
+  const [q, setQ] = useState("");
+  const ql = q.trim().toLowerCase();
+
+  const groups = useMemo(
     () =>
-      TOOLS.filter(
-        (t) =>
-          !q ||
-          t.name.toLowerCase().includes(q) ||
-          t.id.includes(q) ||
-          t.category.toLowerCase().includes(q) ||
-          t.description.toLowerCase().includes(q),
-      ),
-    [q],
+      CATEGORIES.map((cat) => ({
+        cat,
+        tools: TOOLS.filter(
+          (t) =>
+            t.category === cat &&
+            (!ql ||
+              t.name.toLowerCase().includes(ql) ||
+              t.description.toLowerCase().includes(ql)),
+        ),
+      })).filter((g) => g.tools.length),
+    [ql],
   );
 
-  const hl = (name: string): ReactNode => {
-    if (!q) return name;
-    const i = name.toLowerCase().indexOf(q);
-    if (i < 0) return name;
-    return (
-      <>
-        {name.slice(0, i)}
-        <mark>{name.slice(i, i + q.length)}</mark>
-        {name.slice(i + q.length)}
-      </>
-    );
-  };
-
   return (
-    <aside className="sidebar">
-      <button className="brand" onClick={() => nav("home")} style={{ cursor: "pointer", textAlign: "left" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- small static avatar */}
-        <img className="brand-avatar" src={MASCOT_AVATAR} alt="Don" />
-        <div>
-          <div className="brand-name">
-            Don<b>PDF</b><span className="cursor" />
-          </div>
-          <div className="brand-sub">{TOOLS.length} tools · no uploads</div>
+    <nav className={cx("sidebar", open && "open")}>
+      <div className="sb-brand">
+        <div className="sb-logo">
+          <BrandLogo />
         </div>
-      </button>
-
-      <div className="search-wrap">
-        <div className="search">
-          <span className="prompt">❯</span>
-          <input
-            ref={searchRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="search tools…"
-            spellCheck={false}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && filtered[0]) nav(filtered[0].id);
-              if (e.key === "Escape") setQuery("");
-            }}
-          />
-          <kbd>⌘K</kbd>
+        <div className="stack">
+          <div className="sb-wordmark">
+            Don<b>PDF</b>
+          </div>
+          <div className="sb-tag">PDF tools, on your device</div>
         </div>
       </div>
 
-      <nav className="nav">
+      <div className="search">
+        <Icon name="search" size={16} className="ic" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search tools…"
+          spellCheck={false}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && groups[0]?.tools[0]) nav(groups[0].tools[0].id);
+            if (e.key === "Escape") setQ("");
+          }}
+        />
+        {!q && <kbd>⌘K</kbd>}
+      </div>
+
+      <div className="sb-scroll">
         <button
-          className={`nav-item ${route === "home" ? "active" : ""}`}
+          className={cx("nav-item", route === "home" && "active")}
           onClick={() => nav("home")}
+          style={{ marginBottom: 12 }}
         >
-          <Icon className="ic" name="home" /> Home
+          <Icon name="home" size={19} className="ic" />
+          Home
         </button>
-        {CATEGORIES.map((cat) => {
-          const items = filtered.filter((t) => t.category === cat);
-          if (!items.length) return null;
-          return (
-            <div key={cat}>
-              <div className="cat">{cat}</div>
-              {items.map((t) => (
-                <button
-                  key={t.id}
-                  className={`nav-item ${route === t.id ? "active" : ""}`}
-                  onClick={() => nav(t.id)}
-                >
-                  <span className="ic" style={{ fontSize: 12, fontWeight: 700 }}>
-                    {t.glyph}
-                  </span>
-                  {hl(t.name)}
-                  {t.live && (
-                    <span
-                      style={{
-                        marginLeft: "auto",
-                        width: 6,
-                        height: 6,
-                        borderRadius: 9,
-                        background: "var(--accent)",
-                        boxShadow: "0 0 6px var(--accent-glow)",
-                      }}
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="nav-empty">
-            <span className="tok-punc">{">"}</span> no tool matches “{query}”.
-            <br />
-            Try “merge”, “split”, “rotate”…
+        {groups.length === 0 && <div className="nav-empty">No tools match “{q}”.</div>}
+        {groups.map((g) => (
+          <div className="nav-group" key={g.cat}>
+            <div className="nav-cat">{g.cat}</div>
+            {g.tools.map((t) => (
+              <button
+                key={t.id}
+                className={cx("nav-item", route === t.id && "active")}
+                onClick={() => nav(t.id)}
+              >
+                <Icon name={t.icon} size={19} className="ic" />
+                <span style={{ flex: 1 }}>{t.name}</span>
+              </button>
+            ))}
           </div>
-        )}
-      </nav>
+        ))}
+      </div>
 
-      <div className="side-foot">
-        <EthicalAd />
-        <div className="statusline">
-          <span className="seg accent">NORMAL</span>
-          <span className="seg">
-            <span className="dot" />
-            private
+      <div className="sb-foot">
+        <div className="privacy">
+          <Icon name="shield" size={20} className="ic" strokeWidth={1.8} />
+          <div className="privacy-txt">
+            <b>Private by design</b>
+            <span>Files are processed locally</span>
+          </div>
+        </div>
+        <div className="theme-row">
+          <span>
+            <Icon name={theme === "dark" ? "moon" : "sun"} size={16} />
+            {theme === "dark" ? "Dark" : "Light"} mode
           </span>
-          <span className="seg grow" style={{ justifyContent: "flex-end" }}>
-            v1.0.0
-          </span>
+          <button
+            className="toggle"
+            onClick={toggleTheme}
+            role="switch"
+            aria-checked={theme === "dark"}
+            aria-label="Toggle theme"
+          >
+            <span className="knob">
+              <Icon name={theme === "dark" ? "moon" : "sun"} size={12} strokeWidth={2} />
+            </span>
+          </button>
         </div>
       </div>
-    </aside>
+    </nav>
   );
 }
 
-/* ---------------- Tool view ---------------- */
-function ToolView({ tool }: { tool: (typeof TOOLS)[number] }) {
-  const Comp = tool.Component;
+/* ---------------- Tool header ---------------- */
+function ToolHeader({ tool }: { tool: Tool }) {
   return (
-    <div className="content-inner">
-      <div className="tool-head">
-        <div className="crumb">
-          ~/don-pdf/<b>{tool.id}</b> · ~/{CAT_ABBR[tool.category]}
-        </div>
-        <div className="flex items-center gap4" style={{ flexWrap: "wrap" }}>
-          <h1>{tool.name}</h1>
-          <Badge kind="ok">live</Badge>
-        </div>
-        <p>{tool.description}</p>
+    <div className="tool-header">
+      <div className="th-icon">
+        <Icon name={tool.icon} size={24} strokeWidth={1.7} />
       </div>
-      <Comp />
+      <div className="th-text">
+        <h1>{tool.name}</h1>
+        <p>{tool.tagline}</p>
+      </div>
+      <span className="live-pill">
+        <span className="live-dot" />
+        On-device
+      </span>
     </div>
   );
 }
 
 /* ---------------- 404 ---------------- */
-function NotFound({ route, go }: { route: string; go: (id: string) => void }) {
+function NotFound({ go }: { go: (id: string) => void }): ReactNode {
   return (
-    <div className="content-inner">
-      <div className="cnf">
-        <Mascot className="em-mascot" />
-        <div>
-          <div className="muted" style={{ fontSize: "var(--fs-sm)" }}>
-            don@don-pdf ~ %
-          </div>
-          <h1 style={{ marginTop: 8 }}>command not found</h1>
-        </div>
-        <p className="muted" style={{ maxWidth: "46ch" }}>
-          <code>{route}</code>: no such tool here. Don checked twice.
-        </p>
-        <button className="btn primary" onClick={() => go("home")}>
-          <Icon name="home" size={13} />
-          cd ~/home
-        </button>
+    <div className="notfound">
+      <div className="mascot-frame oops">
+        {/* eslint-disable-next-line @next/next/no-img-element -- small static mascot */}
+        <img src="/mascot.png" alt="" />
       </div>
+      <div className="code">404</div>
+      <h2 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "-0.02em" }}>
+        This tool wandered off
+      </h2>
+      <p className="muted" style={{ maxWidth: "36ch" }}>
+        We couldn&apos;t find that page. Let&apos;s get you back to the tools.
+      </p>
+      <button className="btn btn-primary btn-lg" onClick={() => go("home")}>
+        <Icon name="home" size={18} />
+        Back to home
+      </button>
     </div>
   );
 }

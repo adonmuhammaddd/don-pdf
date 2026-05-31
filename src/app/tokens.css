@@ -1,153 +1,147 @@
 /* ============================================================
-   DonDevTool — Design Tokens
-   Retro terminal / CRT. Two themes (dark default, light cream).
-   Switchable phosphor accent (green | amber).
+   DonPDF — Design Tokens
+   Clean, trustworthy modern SaaS. Trust-blue/indigo accent.
    ============================================================ */
 
-/* Fonts are self-hosted from /public/fonts (see src/app/fonts.css) so the app
-   makes zero network requests. Regenerate with scripts/fetch-fonts.mjs. */
+/* Geist is self-hosted via next/font (the `geist` package) in layout.tsx — no
+   external font request, keeping the app fully offline / privacy-first.
+   --font-geist-sans / --font-geist-mono come from those font loaders. */
 
 :root {
-  /* Type */
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --font-read: 'IBM Plex Mono', var(--font-mono);
+  /* ---- Brand: trust blue / indigo (oklch ramp, hue ~258) ---- */
+  --brand-50:  oklch(0.972 0.018 262);
+  --brand-100: oklch(0.945 0.035 262);
+  --brand-200: oklch(0.895 0.066 261);
+  --brand-300: oklch(0.815 0.105 261);
+  --brand-400: oklch(0.705 0.150 260);
+  --brand-500: oklch(0.610 0.176 259);
+  --brand-600: oklch(0.545 0.183 259);
+  --brand-700: oklch(0.485 0.170 259);
+  --brand-800: oklch(0.420 0.140 259);
+  --brand-900: oklch(0.355 0.108 260);
 
-  --fs-xs: 11px;
-  --fs-sm: 12.5px;
-  --fs-base: 14px;
-  --fs-md: 16px;
-  --fs-lg: 19px;
-  --fs-xl: 24px;
-  --fs-2xl: 34px;
-  --fs-3xl: 48px;
+  /* ---- Semantic ---- */
+  --success:   oklch(0.605 0.135 158);
+  --success-bg: oklch(0.955 0.040 158);
+  --warning:   oklch(0.730 0.140 72);
+  --warning-bg: oklch(0.960 0.055 80);
+  --error:     oklch(0.580 0.205 24);
+  --error-bg:  oklch(0.955 0.035 22);
+  --info:      oklch(0.600 0.130 240);
+  --info-bg:   oklch(0.955 0.035 240);
 
-  --lh-tight: 1.15;
-  --lh-snug: 1.4;
-  --lh-code: 1.65;
-  --ls-head: 0.14em;   /* terminal heading tracking */
-  --ls-wide: 0.04em;
+  /* ---- Type ---- */
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: var(--font-geist-mono), 'SF Mono', ui-monospace, monospace;
 
-  /* Spacing scale */
-  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
-  --s5: 20px; --s6: 24px; --s7: 32px; --s8: 44px; --s9: 64px;
+  --text-xs:   0.75rem;    /* 12 */
+  --text-sm:   0.8125rem;  /* 13 */
+  --text-base: 0.9375rem;  /* 15 */
+  --text-md:   1.0625rem;  /* 17 */
+  --text-lg:   1.25rem;    /* 20 */
+  --text-xl:   1.5rem;     /* 24 */
+  --text-2xl:  2rem;       /* 32 */
+  --text-3xl:  2.75rem;    /* 44 */
 
-  /* Radius — small/sharp to suit terminal */
-  --r-sm: 3px;
-  --r-md: 5px;
-  --r-lg: 7px;
+  /* ---- Radius ---- */
+  --r-xs: 6px;
+  --r-sm: 9px;
+  --r-md: 13px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-2xl: 32px;
+  --r-full: 999px;
 
-  --sidebar-w: 264px;
-  --maxw: 1180px;
+  /* ---- Spacing scale ---- */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px;
+  --s-12: 48px; --s-16: 64px; --s-20: 80px;
 
-  /* Motion */
-  --ease: cubic-bezier(.22,.61,.36,1);
-  --dur-fast: .12s;
-  --dur: .2s;
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 130ms;
+  --dur: 220ms;
+  --dur-slow: 380ms;
 }
 
-/* ---------------- DARK THEME (default) ---------------- */
-:root,
-[data-theme='dark'] {
-  --bg-0: #0b0d0c;        /* app backdrop, near-black w/ green cast */
-  --bg-1: #101413;        /* primary surface */
-  --bg-2: #161b19;        /* elevated surface / inputs */
-  --bg-3: #1d2421;        /* hover / raised */
-  --bg-inset: #0a0c0b;    /* code wells */
+/* ============================================================
+   LIGHT THEME (default)
+   ============================================================ */
+:root, [data-theme="light"] {
+  --bg:          oklch(0.984 0.004 258);
+  --bg-grad-1:   oklch(0.975 0.012 262);
+  --surface:     oklch(1 0 0);
+  --surface-2:   oklch(0.976 0.005 258);
+  --surface-3:   oklch(0.962 0.007 258);
+  --surface-inset: oklch(0.968 0.006 258);
 
-  --border: #232b27;      /* hairline */
-  --border-1: #2e3833;    /* stronger */
-  --border-glow: color-mix(in oklab, var(--accent) 38%, transparent);
+  --border:        oklch(0.916 0.006 258);
+  --border-strong: oklch(0.865 0.009 258);
 
-  --text-0: #d8e3da;      /* primary, phosphor-tinted */
-  --text-1: #8f9c93;      /* secondary */
-  --text-2: #5d6862;      /* muted */
-  --text-inv: #0a0c0b;
+  --text:        oklch(0.255 0.022 262);
+  --text-2:      oklch(0.460 0.020 260);
+  --text-muted:  oklch(0.605 0.016 260);
 
-  --success: #41d67e;
-  --error:   #ff6b5e;
-  --warning: #ffbe4d;
-  --info:    #56b6f0;
+  --accent:        var(--brand-600);
+  --accent-hover:  var(--brand-700);
+  --accent-active: var(--brand-800);
+  --accent-subtle: var(--brand-50);
+  --accent-subtle-2: var(--brand-100);
+  --accent-border: var(--brand-200);
+  --on-accent:     oklch(0.99 0.005 262);
+  --accent-ring:   oklch(0.610 0.176 259 / 0.35);
 
-  /* syntax */
-  --syn-key:    var(--accent);
-  --syn-string: #c9d98a;
-  --syn-number: #e6a76b;
-  --syn-bool:   #6fb8ef;
-  --syn-null:   #8f9c93;
-  --syn-punc:   #6c7872;
+  --overlay: oklch(0.25 0.02 262 / 0.42);
 
-  --scrim: rgba(0,0,0,.55);
-  --scanline-opacity: .20;
-  --scanline-color: rgba(0,0,0,.55);
-  --vignette: radial-gradient(120% 120% at 50% 0%, transparent 60%, rgba(0,0,0,.35) 100%);
-  --shadow-pop: 0 18px 50px -12px rgba(0,0,0,.7);
+  --shadow-sm: 0 1px 2px oklch(0.4 0.03 262 / 0.05), 0 1px 3px oklch(0.4 0.03 262 / 0.07);
+  --shadow-md: 0 4px 12px -2px oklch(0.4 0.03 262 / 0.09), 0 2px 6px -2px oklch(0.4 0.03 262 / 0.06);
+  --shadow-lg: 0 14px 34px -10px oklch(0.4 0.03 262 / 0.16), 0 6px 14px -6px oklch(0.4 0.03 262 / 0.08);
+  --shadow-xl: 0 28px 64px -16px oklch(0.35 0.04 262 / 0.22), 0 10px 24px -10px oklch(0.4 0.03 262 / 0.10);
+  --shadow-accent: 0 8px 22px -6px oklch(0.545 0.183 259 / 0.42);
+
+  color-scheme: light;
 }
 
-/* ---------------- LIGHT THEME (cream / paper terminal) ---------------- */
-[data-theme='light'] {
-  --bg-0: #e7dcc4;        /* parchment backdrop */
-  --bg-1: #f1e9d6;        /* primary surface */
-  --bg-2: #f8f1e1;        /* elevated / inputs */
-  --bg-3: #efe4cc;        /* hover */
-  --bg-inset: #f5ecd9;    /* code wells */
+/* ============================================================
+   DARK THEME — deep neutral, not pure black
+   ============================================================ */
+[data-theme="dark"] {
+  --bg:          oklch(0.193 0.012 262);
+  --bg-grad-1:   oklch(0.225 0.018 264);
+  --surface:     oklch(0.228 0.014 262);
+  --surface-2:   oklch(0.258 0.015 262);
+  --surface-3:   oklch(0.290 0.016 262);
+  --surface-inset: oklch(0.210 0.013 262);
 
-  --border: #d2c3a2;
-  --border-1: #bda87f;
-  --border-glow: color-mix(in oklab, var(--accent) 45%, transparent);
+  --border:        oklch(0.318 0.016 262);
+  --border-strong: oklch(0.385 0.018 262);
 
-  --text-0: #312814;      /* amber-brown ink */
-  --text-1: #6b5c3e;
-  --text-2: #978767;
-  --text-inv: #f8f1e1;
+  --text:        oklch(0.965 0.005 258);
+  --text-2:      oklch(0.770 0.012 258);
+  --text-muted:  oklch(0.620 0.014 260);
 
-  --success: #2f7d43;
-  --error:   #b4341f;
-  --warning: #a9711a;
-  --info:    #2d6fa3;
+  --accent:        var(--brand-400);
+  --accent-hover:  var(--brand-300);
+  --accent-active: var(--brand-200);
+  --accent-subtle: oklch(0.300 0.060 260);
+  --accent-subtle-2: oklch(0.345 0.080 260);
+  --accent-border: oklch(0.400 0.090 260);
+  --on-accent:     oklch(0.16 0.02 262);
+  --accent-ring:   oklch(0.705 0.150 260 / 0.45);
 
-  --syn-key:    var(--accent);
-  --syn-string: #6a7a2a;
-  --syn-number: #a35a17;
-  --syn-bool:   #2d6fa3;
-  --syn-null:   #978767;
-  --syn-punc:   #998961;
+  --success-bg: oklch(0.300 0.055 158);
+  --warning-bg: oklch(0.330 0.060 80);
+  --error-bg:   oklch(0.320 0.070 22);
+  --info-bg:    oklch(0.310 0.050 240);
 
-  --scrim: rgba(60,46,20,.35);
-  --scanline-opacity: .10;
-  --scanline-color: rgba(120,90,40,.30);
-  --vignette: radial-gradient(120% 130% at 50% 0%, transparent 62%, rgba(120,90,40,.16) 100%);
-  --shadow-pop: 0 16px 44px -14px rgba(80,60,24,.42);
-}
+  --overlay: oklch(0.12 0.02 262 / 0.62);
 
-/* ---------------- ACCENT VARIANTS ---------------- */
-/* Phosphor green */
-[data-accent='green'] {
-  --accent:      #3ef07a;
-  --accent-2:    #5ef58f;
-  --accent-dim:  #1f6e40;
-  --accent-soft: color-mix(in oklab, var(--accent) 14%, transparent);
-  --accent-glow: color-mix(in oklab, var(--accent) 55%, transparent);
-  --accent-ink:  #062611;   /* text on accent fills */
-}
-/* Phosphor amber */
-[data-accent='amber'] {
-  --accent:      #ffb000;
-  --accent-2:    #ffc94d;
-  --accent-dim:  #8a5e00;
-  --accent-soft: color-mix(in oklab, var(--accent) 15%, transparent);
-  --accent-glow: color-mix(in oklab, var(--accent) 55%, transparent);
-  --accent-ink:  #2a1c00;
-}
-/* Light theme leans its own warmer accent regardless of pick, but honours hue */
-[data-theme='light'][data-accent='green'] {
-  --accent:      #3f7a2e;
-  --accent-2:    #4f9139;
-  --accent-dim:  #9bb98a;
-  --accent-ink:  #f3f7ee;
-}
-[data-theme='light'][data-accent='amber'] {
-  --accent:      #b5641e;
-  --accent-2:    #c8762a;
-  --accent-dim:  #d8b483;
-  --accent-ink:  #fbf4e7;
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.30), 0 1px 3px oklch(0 0 0 / 0.34);
+  --shadow-md: 0 4px 14px -2px oklch(0 0 0 / 0.40), 0 2px 6px -2px oklch(0 0 0 / 0.30);
+  --shadow-lg: 0 16px 38px -10px oklch(0 0 0 / 0.55), 0 6px 16px -6px oklch(0 0 0 / 0.40);
+  --shadow-xl: 0 30px 70px -16px oklch(0 0 0 / 0.62), 0 12px 28px -10px oklch(0 0 0 / 0.45);
+  --shadow-accent: 0 8px 24px -6px oklch(0.705 0.150 260 / 0.40);
+
+  color-scheme: dark;
 }

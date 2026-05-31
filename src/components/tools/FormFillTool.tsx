@@ -10,7 +10,7 @@ import {
   PDFTextField,
 } from "pdf-lib";
 import { FileDrop, RunButton } from "@/components/pdfui";
-import { TerminalWindow } from "@/components/ui";
+import { Banner, Check } from "@/components/ui";
 import { baseName, downloadBlob } from "@/lib/pdf";
 
 type FieldType = "text" | "checkbox" | "dropdown" | "radio" | "optionlist" | "other";
@@ -29,7 +29,7 @@ export default function FormFillTool() {
   const [flatten, setFlatten] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
+  const [note, setNote] = useState<{ kind: "ok" | "err" | "warn"; msg: string } | null>(null);
 
   const load = async (files: File[]) => {
     const file = files[0];
@@ -70,7 +70,7 @@ export default function FormFillTool() {
       setChecks(chk);
       setLoaded(true);
       if (descs.length === 0) {
-        setNote({ kind: "err", msg: "This PDF has no fillable form fields. Use Fill & Sign to overlay text instead." });
+        setNote({ kind: "warn", msg: "This PDF has no fillable form fields. Use Fill & Sign to overlay text instead." });
       }
     } catch (e) {
       setNote({ kind: "err", msg: `Couldn't read PDF: ${(e as Error).message}` });
@@ -125,76 +125,74 @@ export default function FormFillTool() {
     }
   };
 
+  if (!loaded) {
+    return (
+      <div className="stack" style={{ gap: "var(--s-5)" }}>
+        <FileDrop
+          accept="application/pdf"
+          multiple={false}
+          onFiles={load}
+          icon="forms"
+          title={<>Drop a fillable PDF or <span className="em">browse</span></>}
+          sub="We'll detect the form fields so you can fill them in."
+        />
+        {note && <Banner kind={note.kind === "err" ? "error" : "warn"}>{note.msg}</Banner>}
+      </div>
+    );
+  }
+
   return (
-    <div>
-      {!loaded && (
-        <TerminalWindow title={<><b>fill forms</b> — source PDF</>} glow>
-          <FileDrop
-            accept="application/pdf"
-            multiple={false}
-            onFiles={load}
-            label="Drop a fillable PDF here"
-            hint="reads native AcroForm fields — nothing is uploaded"
-          />
-        </TerminalWindow>
-      )}
+    <div className="stack" style={{ gap: "var(--s-5)" }}>
+      <div className="panel">
+        <div className="panel-title with-sub">{name}</div>
+        <div className="panel-sub">{fields.length} form field{fields.length === 1 ? "" : "s"} detected</div>
 
-      {loaded && (
-        <>
-          <div className="pdf-actions" style={{ marginTop: 0 }}>
-            <RunButton onClick={run} busy={busy} disabled={fields.length === 0}>
-              Fill &amp; download
-            </RunButton>
-            <button type="button" className="btn" onClick={reset} disabled={busy}>Load another</button>
-            <label className="opt" style={{ flexDirection: "row", alignItems: "center", gap: "var(--s2)" }}>
-              <input type="checkbox" checked={flatten} onChange={(e) => setFlatten(e.target.checked)} />
-              <span style={{ textTransform: "none" }}>flatten (lock values, no longer editable)</span>
-            </label>
-            <span style={{ color: "var(--text-2)", fontSize: "var(--fs-sm)" }}>{name} · {fields.length} fields</span>
+        {fields.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "var(--s-4)" }}>
+            {fields.map((f) => (
+              <div className="field" key={f.name} style={{ marginBottom: 0 }}>
+                <label title={f.name} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</label>
+                {f.type === "text" && (
+                  <input className="input" value={values[f.name] ?? ""} onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))} />
+                )}
+                {f.type === "checkbox" && (
+                  <Check checked={checks[f.name] ?? false} onChange={(v) => setChecks((c) => ({ ...c, [f.name]: v }))} label={checks[f.name] ? "Checked" : "Unchecked"} />
+                )}
+                {(f.type === "dropdown" || f.type === "radio" || f.type === "optionlist") && (
+                  <select className="select" value={values[f.name] ?? ""} onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}>
+                    <option value="">— none —</option>
+                    {f.options?.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                )}
+                {f.type === "other" && <span className="hint">Unsupported field type</span>}
+              </div>
+            ))}
           </div>
+        )}
 
-          {fields.length > 0 && (
-            <div className="form-fields">
-              {fields.map((f) => (
-                <div className="form-field" key={f.name}>
-                  <label className="form-field-label" title={f.name}>{f.name}</label>
-                  {f.type === "text" && (
-                    <input
-                      type="text"
-                      value={values[f.name] ?? ""}
-                      onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
-                    />
-                  )}
-                  {f.type === "checkbox" && (
-                    <label className="form-check">
-                      <input
-                        type="checkbox"
-                        checked={checks[f.name] ?? false}
-                        onChange={(e) => setChecks((c) => ({ ...c, [f.name]: e.target.checked }))}
-                      />
-                      <span>{checks[f.name] ? "checked" : "unchecked"}</span>
-                    </label>
-                  )}
-                  {(f.type === "dropdown" || f.type === "radio" || f.type === "optionlist") && (
-                    <select
-                      value={values[f.name] ?? ""}
-                      onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
-                    >
-                      <option value="">— none —</option>
-                      {f.options?.map((o) => (
-                        <option key={o} value={o}>{o}</option>
-                      ))}
-                    </select>
-                  )}
-                  {f.type === "other" && <span className="form-field-na">unsupported field type</span>}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+        {fields.length > 0 && (
+          <div style={{ marginTop: "var(--s-5)" }}>
+            <Check checked={flatten} onChange={setFlatten} label="Flatten when done" sub="Locks the values so the form can't be edited again." />
+          </div>
+        )}
+      </div>
+
+      <div className="run-bar">
+        <RunButton onClick={run} busy={busy} disabled={fields.length === 0} icon="forms">
+          Fill &amp; download
+        </RunButton>
+        <button type="button" className="btn btn-ghost" onClick={reset} disabled={busy}>
+          Choose another
+        </button>
+      </div>
+
+      {note && (
+        <Banner kind={note.kind === "ok" ? "success" : note.kind === "warn" ? "warn" : "error"} title={note.kind === "ok" ? "Done" : undefined}>
+          {note.msg}
+        </Banner>
       )}
-
-      {note && <div className={`pdf-note ${note.kind}`}>{note.msg}</div>}
     </div>
   );
 }

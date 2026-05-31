@@ -3,18 +3,16 @@
 import { useState } from "react";
 import { PDFDocument, type PDFImage } from "pdf-lib";
 import { FileDrop, FileList, RunButton, type NamedFile } from "@/components/pdfui";
-import { Segmented, TerminalWindow } from "@/components/ui";
+import { Banner, Segmented } from "@/components/ui";
 import { downloadBlob } from "@/lib/pdf";
 
 const uid = () => Math.random().toString(36).slice(2);
 const A4 = { w: 595.28, h: 841.89 };
 const MARGIN = 36;
-
 type PageMode = "match" | "a4";
 
 const isImage = (f: File) =>
-  f.type === "image/jpeg" || f.type === "image/png" ||
-  /\.(jpe?g|png)$/i.test(f.name);
+  f.type === "image/jpeg" || f.type === "image/png" || /\.(jpe?g|png)$/i.test(f.name);
 
 export default function ImageToPdfTool() {
   const [items, setItems] = useState<NamedFile[]>([]);
@@ -47,10 +45,7 @@ export default function ImageToPdfTool() {
       for (const it of items) {
         const bytes = await it.file.arrayBuffer();
         const isPng = it.file.type === "image/png" || /\.png$/i.test(it.file.name);
-        const img: PDFImage = isPng
-          ? await out.embedPng(bytes)
-          : await out.embedJpg(bytes);
-
+        const img: PDFImage = isPng ? await out.embedPng(bytes) : await out.embedJpg(bytes);
         if (pageMode === "match") {
           const page = out.addPage([img.width, img.height]);
           page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
@@ -61,12 +56,7 @@ export default function ImageToPdfTool() {
           const scale = Math.min(maxW / img.width, maxH / img.height, 1);
           const w = img.width * scale;
           const h = img.height * scale;
-          page.drawImage(img, {
-            x: (A4.w - w) / 2,
-            y: (A4.h - h) / 2,
-            width: w,
-            height: h,
-          });
+          page.drawImage(img, { x: (A4.w - w) / 2, y: (A4.h - h) / 2, width: w, height: h });
         }
       }
       const result = await out.save();
@@ -80,21 +70,19 @@ export default function ImageToPdfTool() {
   };
 
   return (
-    <div>
-      <TerminalWindow title={<><b>image → pdf</b> — drop JPG / PNG in order</>} glow>
-        <FileDrop
-          accept="image/jpeg,image/png"
-          onFiles={addFiles}
-          label="Drop JPG / PNG images here"
-          hint="reorder with ↑ ↓ — one image per page — nothing is uploaded"
-        />
-        <FileList items={items} onRemove={remove} onMove={move} />
-      </TerminalWindow>
-
+    <div className="stack" style={{ gap: "var(--s-5)" }}>
+      <FileDrop
+        accept="image/jpeg,image/png"
+        onFiles={addFiles}
+        icon="image"
+        title={<>Drop JPG / PNG or <span className="em">browse</span></>}
+        sub="One image per page — drag to reorder before converting."
+      />
       {items.length > 0 && (
-        <div className="opt-row">
-          <label className="opt">
-            <span>page size</span>
+        <>
+          <FileList items={items} onRemove={remove} onMove={move} />
+          <div className="field">
+            <label>Page size</label>
             <Segmented
               value={pageMode}
               onChange={setPageMode}
@@ -103,22 +91,26 @@ export default function ImageToPdfTool() {
                 { value: "a4", label: "Fit to A4" },
               ]}
             />
-          </label>
-        </div>
+          </div>
+        </>
       )}
 
-      <div className="pdf-actions">
-        <RunButton onClick={run} busy={busy} disabled={items.length === 0}>
+      <div className="run-bar">
+        <RunButton onClick={run} busy={busy} disabled={items.length === 0} icon="img2pdf">
           Create PDF
         </RunButton>
         {items.length > 0 && (
-          <button type="button" className="btn" onClick={() => setItems([])} disabled={busy}>
+          <button type="button" className="btn btn-ghost" onClick={() => setItems([])} disabled={busy}>
             Clear
           </button>
         )}
       </div>
 
-      {note && <div className={`pdf-note ${note.kind}`}>{note.msg}</div>}
+      {note && (
+        <Banner kind={note.kind === "ok" ? "success" : "error"} title={note.kind === "ok" ? "Done" : "Couldn't convert"}>
+          {note.msg}
+        </Banner>
+      )}
     </div>
   );
 }

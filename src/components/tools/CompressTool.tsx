@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PDFDocument } from "pdf-lib";
 import { FileDrop, ProgressBar, RunButton } from "@/components/pdfui";
-import { Segmented, TerminalWindow } from "@/components/ui";
+import { Banner, Segmented } from "@/components/ui";
 import { baseName, downloadBlob, formatBytes, openPdfjsDoc, renderPageToBlob } from "@/lib/pdf";
 
 interface Loaded {
@@ -12,10 +12,10 @@ interface Loaded {
   size: number;
 }
 type Level = "strong" | "balanced" | "light";
-const PRESETS: Record<Level, { scale: number; quality: number; label: string }> = {
-  strong: { scale: 1.0, quality: 0.5, label: "Strong" },
-  balanced: { scale: 1.5, quality: 0.65, label: "Balanced" },
-  light: { scale: 2.0, quality: 0.8, label: "Light" },
+const PRESETS: Record<Level, { scale: number; quality: number }> = {
+  strong: { scale: 1.0, quality: 0.5 },
+  balanced: { scale: 1.5, quality: 0.65 },
+  light: { scale: 2.0, quality: 0.8 },
 };
 
 export default function CompressTool() {
@@ -23,12 +23,14 @@ export default function CompressTool() {
   const [level, setLevel] = useState<Level>("balanced");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [note, setNote] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
+  const [result, setResult] = useState<{ before: number; after: number } | null>(null);
+  const [note, setNote] = useState<{ kind: "error" | "warn"; msg: string } | null>(null);
 
   const load = (files: File[]) => {
     const file = files[0];
     if (!file) return;
     setNote(null);
+    setResult(null);
     file.arrayBuffer().then((bytes) => setDoc({ name: file.name, bytes, size: file.size }));
   };
 
@@ -37,8 +39,9 @@ export default function CompressTool() {
     setBusy(true);
     setProgress(0);
     setNote(null);
+    setResult(null);
     const pdfjsDoc = await openPdfjsDoc(doc.bytes).catch((e) => {
-      setNote({ kind: "err", msg: `Couldn't read PDF: ${(e as Error).message}` });
+      setNote({ kind: "error", msg: `Couldn't read PDF: ${(e as Error).message}` });
       return null;
     });
     if (!pdfjsDoc) {
@@ -58,76 +61,106 @@ export default function CompressTool() {
         page.drawImage(jpg, { x: 0, y: 0, width: ptW, height: ptH });
         setProgress(i / total);
       }
-      const result = await out.save();
-      const newSize = result.byteLength;
+      const bytes = await out.save();
+      const after = bytes.byteLength;
       const stem = baseName(doc.name);
-      downloadBlob(result, `${stem}-compressed.pdf`);
-      const diff = doc.size - newSize;
-      const pct = doc.size > 0 ? Math.round((diff / doc.size) * 100) : 0;
-      setNote(
-        diff > 0
-          ? {
-              kind: "ok",
-              msg: `${formatBytes(doc.size)} → ${formatBytes(newSize)} (${pct}% smaller). Pages were flattened to images.`,
-            }
-          : {
-              kind: "err",
-              msg: `Result (${formatBytes(newSize)}) wasn't smaller than the original (${formatBytes(doc.size)}). This method only helps image-heavy PDFs — try a stronger level, or skip compression.`,
-            },
-      );
+      downloadBlob(bytes, `${stem}-compressed.pdf`);
+      if (after < doc.size) {
+        setResult({ before: doc.size, after });
+      } else {
+        setNote({
+          kind: "warn",
+          msg: `Result (${formatBytes(after)}) wasn't smaller than the original (${formatBytes(doc.size)}). This method only helps image-heavy PDFs — text-only PDFs are already compact. The file still downloaded.`,
+        });
+      }
     } catch (e) {
-      setNote({ kind: "err", msg: `Compress failed: ${(e as Error).message}` });
+      setNote({ kind: "error", msg: `Compress failed: ${(e as Error).message}` });
     } finally {
       pdfjsDoc.destroy();
       setBusy(false);
     }
   };
 
+  if (!doc) {
+    return (
+      <FileDrop
+        accept="application/pdf"
+        multiple={false}
+        onFiles={load}
+        icon="compress"
+        title={<>Drop a PDF or <span className="em">browse</span></>}
+        sub="Best for scanned or image-heavy PDFs."
+      />
+    );
+  }
+
+  const pct = result ? Math.round(((result.before - result.after) / result.before) * 100) : 0;
+
   return (
-    <div>
-      <TerminalWindow title={<><b>compress</b> — source PDF</>} glow>
-        <FileDrop
-          accept="application/pdf"
-          multiple={false}
-          onFiles={load}
-          label={doc ? doc.name : "Drop a PDF here"}
-          hint={doc ? `${formatBytes(doc.size)} loaded` : "single file — nothing is uploaded"}
-        />
-      </TerminalWindow>
+    <div className="stack" style={{ gap: "var(--s-5)" }}>
+      <div className="panel">
+        <div className="panel-title with-sub">{doc.name}</div>
+        <div className="panel-sub">{formatBytes(doc.size)} loaded</div>
+        <div className="field">
+          <label>Compression level</label>
+          <Segmented
+            value={level}
+            onChange={setLevel}
+            options={[
+              { value: "strong", label: "Strong" },
+              { value: "balanced", label: "Balanced" },
+              { value: "light", label: "Light" },
+            ]}
+          />
+        </div>
+      </div>
 
-      {doc && (
-        <>
-          <div className="opt-row">
-            <label className="opt">
-              <span>compression</span>
-              <Segmented
-                value={level}
-                onChange={setLevel}
-                options={[
-                  { value: "strong", label: "Strong" },
-                  { value: "balanced", label: "Balanced" },
-                  { value: "light", label: "Light" },
-                ]}
-              />
-            </label>
+      <Banner kind="info" title="How this works">
+        Compression re-renders each page to an image, so text becomes
+        non-selectable. It shrinks scanned / image-heavy PDFs well, but won&apos;t
+        help text-only PDFs.
+      </Banner>
+
+      {busy && <ProgressBar value={progress} label="Compressing" />}
+
+      <div className="run-bar">
+        <RunButton onClick={run} busy={busy} icon="compress">
+          Compress PDF
+        </RunButton>
+        <button type="button" className="btn btn-ghost" onClick={() => setDoc(null)} disabled={busy}>
+          Choose another
+        </button>
+      </div>
+
+      {result && (
+        <div className="size-result">
+          <div className="size-stat">
+            <div className="lbl">Before</div>
+            <div className="val">{formatBytes(result.before)}</div>
           </div>
-
-          <div className="pdf-note">
-            Heads-up: this re-renders each page to a JPEG image, so text becomes
-            non-selectable. It shrinks scanned / image-heavy PDFs well, but can
-            <em> grow</em> text-only PDFs — those are already compact.
+          <IconArrow />
+          <div className="size-stat after">
+            <div className="lbl">After</div>
+            <div className="val">{formatBytes(result.after)}</div>
           </div>
-
-          <div className="pdf-actions">
-            <RunButton onClick={run} busy={busy}>Compress PDF</RunButton>
-            <button type="button" className="btn" onClick={() => setDoc(null)} disabled={busy}>Clear</button>
-          </div>
-
-          {busy && <ProgressBar value={progress} />}
-        </>
+          <div className="size-pct">−{pct}%</div>
+        </div>
       )}
 
-      {note && <div className={`pdf-note ${note.kind}`}>{note.msg}</div>}
+      {note && (
+        <Banner kind={note.kind} title={note.kind === "warn" ? "Not much to compress" : "Couldn't compress"}>
+          {note.msg}
+        </Banner>
+      )}
     </div>
+  );
+}
+
+function IconArrow() {
+  return (
+    <svg className="size-arrow" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 12h15" />
+      <path d="M13 6l6 6-6 6" />
+    </svg>
   );
 }

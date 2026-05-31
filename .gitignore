@@ -57,3 +57,6 @@ next-env.d.ts
 /DESIGN_PROMPT.md
 /claude design's questions/
 *.zip
+
+# design handoff working dir (unzipped, local only)
+/_design_handoff/
