@@ -101,7 +101,8 @@ export function parsePageRange(input: string, total: number): number[] {
  */
 function workerUrl(): string {
   const base = typeof document !== "undefined" ? document.baseURI : "/";
-  return new URL("pdf.worker.min.mjs", base).toString();
+  // Served as `.js` (not `.mjs`) — see scripts/copy-pdf-worker.mjs for why.
+  return new URL("pdf.worker.min.js", base).toString();
 }
 
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;

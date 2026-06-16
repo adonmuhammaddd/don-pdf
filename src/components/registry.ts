@@ -11,6 +11,7 @@ import FillSignTool from "@/components/tools/FillSignTool";
 import FormFillTool from "@/components/tools/FormFillTool";
 import CropTool from "@/components/tools/CropTool";
 import CompressTool from "@/components/tools/CompressTool";
+import HtmlToPdfTool from "@/components/tools/HtmlToPdfTool";
 
 export type Category = "Organize" | "Convert" | "Edit & Sign" | "Optimize";
 
@@ -38,6 +39,7 @@ export const TOOLS: Tool[] = [
   // Convert
   { id: "pdf-to-jpg", name: "PDF → Image", description: "Export each page as a PNG or JPG.", tagline: "Pick a format and quality — we'll do the rest.", category: "Convert", icon: "pdf2img", Component: PdfToImageTool },
   { id: "jpg-to-pdf", name: "Image → PDF", description: "Turn photos and scans into a PDF.", tagline: "Combine images into one PDF, in order.", category: "Convert", icon: "img2pdf", Component: ImageToPdfTool },
+  { id: "html-to-pdf", name: "HTML → PDF", description: "Render an HTML page or snippet to a PDF.", tagline: "Paste HTML or drop an .html file — rendered on your device.", category: "Convert", icon: "html2pdf", Component: HtmlToPdfTool },
   // Edit & Sign
   { id: "fill-sign", name: "Fill & Sign", description: "Add text, dates, and your signature.", tagline: "Place text and your signature, then save.", category: "Edit & Sign", icon: "sign", Component: FillSignTool },
   { id: "watermark", name: "Watermark", description: "Stamp text or a logo across pages.", tagline: "Overlay text or an image on every page.", category: "Edit & Sign", icon: "watermark", Component: WatermarkTool },
