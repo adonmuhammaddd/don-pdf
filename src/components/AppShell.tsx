@@ -10,6 +10,7 @@ import {
 } from "react";
 import { CATEGORIES, TOOLS, type Tool } from "@/components/registry";
 import Welcome from "@/components/Welcome";
+import { EthicalAd } from "@/components/EthicalAd";
 import { Icon, ToastHost, cx } from "@/components/ui";
 import { useTheme } from "@/lib/theme";
 
@@ -219,6 +220,7 @@ function Sidebar({
       </div>
 
       <div className="sb-foot">
+        <EthicalAd className="sb-ad" />
         <div className="privacy">
           <Icon name="shield" size={20} className="ic" strokeWidth={1.8} />
           <div className="privacy-txt">
