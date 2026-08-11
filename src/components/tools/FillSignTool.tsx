@@ -142,8 +142,10 @@ export default function FillSignTool() {
     setSelected(ann.id);
   };
 
+  // Pointer (not mouse) events, so dragging works with touch and pen too — a
+  // touch never synthesises the mousemove/mouseup this used to listen for.
   useEffect(() => {
-    const move = (e: MouseEvent) => {
+    const move = (e: PointerEvent) => {
       const d = dragRef.current;
       if (!d) return;
       if (d.mode === "move") {
@@ -158,11 +160,13 @@ export default function FillSignTool() {
     const up = () => {
       dragRef.current = null;
     };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
     return () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
     };
   }, [update]);
 

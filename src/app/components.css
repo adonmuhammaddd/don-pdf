@@ -191,6 +191,8 @@
   background: linear-gradient(170deg, var(--surface), var(--surface-2));
   display: grid; place-items: center;
   position: relative;
+  /* so a rotated thumbnail can size itself against the sheet's other axis */
+  container-type: size;
   transition: transform var(--dur) var(--ease);
 }
 .pc-lines { width: 62%; }
@@ -214,7 +216,7 @@
 .pc-overlay .icon-btn:hover { background: var(--accent); color: var(--on-accent); }
 .pc-overlay .icon-btn.danger:hover { background: var(--error); color: white; }
 .pc-badge {
-  position: absolute; top: 8px; right: 8px;
+  position: absolute; top: 8px; right: 8px; z-index: 2;
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 10.5px; font-weight: 600; font-family: var(--font-mono);
   padding: 3px 7px; border-radius: 99px;
@@ -222,7 +224,7 @@
   box-shadow: var(--shadow-sm);
 }
 .pc-flag {
-  position: absolute; top: 8px; left: 8px;
+  position: absolute; top: 8px; left: 8px; z-index: 2;
   font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
   padding: 3px 7px; border-radius: 6px;
   background: var(--error-bg); color: var(--error);

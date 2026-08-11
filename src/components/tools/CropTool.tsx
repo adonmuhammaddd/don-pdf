@@ -10,9 +10,32 @@ interface Loaded {
   name: string;
   bytes: ArrayBuffer;
   pages: number;
+  /** Visual (post-/Rotate) page size — matches what the preview shows. */
   ptW: number;
   ptH: number;
   thumb: string;
+}
+
+/** Normalised /Rotate angle, 0 | 90 | 180 | 270. */
+const rotOf = (deg: number) => (((Math.round(deg / 90) * 90) % 360) + 360) % 360;
+
+interface Margins {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+/**
+ * The margins the user typed are in *display* space; the CropBox lives in
+ * unrotated PDF space. For a page with /Rotate 90 the visual top edge is the
+ * PDF's left edge, and so on — map the four sides through the rotation.
+ */
+function unrotateMargins(m: Margins, rot: number): Margins {
+  if (rot === 90) return { left: m.top, top: m.right, right: m.bottom, bottom: m.left };
+  if (rot === 180) return { left: m.right, right: m.left, top: m.bottom, bottom: m.top };
+  if (rot === 270) return { right: m.top, bottom: m.right, left: m.bottom, top: m.left };
+  return m;
 }
 
 export default function CropTool() {
@@ -33,11 +56,21 @@ export default function CropTool() {
     try {
       const bytes = await file.arrayBuffer();
       const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
-      const cb = pdf.getPage(0).getCropBox();
+      const first = pdf.getPage(0);
+      const cb = first.getCropBox();
+      // pdf.js renders with /Rotate applied, so the preview box has to match.
+      const quarter = rotOf(first.getRotation().angle) % 180 !== 0;
       const pj = await openPdfjsDoc(bytes);
       const { url } = await renderThumbnail(pj, 1, 320);
       pj.destroy();
-      setDoc({ name: file.name, bytes, pages: pdf.getPageCount(), ptW: cb.width, ptH: cb.height, thumb: url });
+      setDoc({
+        name: file.name,
+        bytes,
+        pages: pdf.getPageCount(),
+        ptW: quarter ? cb.height : cb.width,
+        ptH: quarter ? cb.width : cb.height,
+        thumb: url,
+      });
       setRange(`1-${pdf.getPageCount()}`);
       setTop(0); setRight(0); setBottom(0); setLeft(0);
     } catch (e) {
@@ -56,10 +89,11 @@ export default function CropTool() {
       for (const idx of indices) {
         const page = pages[idx];
         const cb = page.getCropBox();
-        const w = cb.width - left - right;
-        const h = cb.height - top - bottom;
+        const m = unrotateMargins({ top, right, bottom, left }, rotOf(page.getRotation().angle));
+        const w = cb.width - m.left - m.right;
+        const h = cb.height - m.top - m.bottom;
         if (w <= 0 || h <= 0) throw new Error(`Crop too large for page ${idx + 1} (${Math.round(cb.width)}×${Math.round(cb.height)} pt).`);
-        page.setCropBox(cb.x + left, cb.y + bottom, w, h);
+        page.setCropBox(cb.x + m.left, cb.y + m.bottom, w, h);
       }
       const out = await pdf.save();
       const stem = baseName(doc.name);
@@ -128,7 +162,7 @@ export default function CropTool() {
           <div className="panel-title">Preview · page 1</div>
           <div className="crop-preview" style={{ aspectRatio: `${doc.ptW} / ${doc.ptH}`, width: 260 }}>
             {/* eslint-disable-next-line @next/next/no-img-element -- local data-URL preview */}
-            <img src={doc.thumb} alt="page 1 preview" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={doc.thumb} alt="page 1 preview" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }} />
             <div
               className="crop-box"
               style={{

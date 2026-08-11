@@ -143,17 +143,28 @@ export default function OrganizeTool() {
 
       <div className="page-grid">
         {pages.map((p, i) => {
-          const total = (p.baseRot + p.rot) % 360;
+          // The thumbnail already comes out of pdf.js with /Rotate applied, so
+          // the badge and the transform show only what the user added on top.
+          const quarter = p.rot % 180 !== 0;
           return (
             <div className={cx("page-card", p.deleted && "deleted")} key={p.key}>
-              {total !== 0 && <span className="pc-badge">{total}°</span>}
+              {p.rot !== 0 && <span className="pc-badge">{p.rot}°</span>}
               {p.deleted && <span className="pc-flag">removed</span>}
               <div className="pc-sheet">
                 {/* eslint-disable-next-line @next/next/no-img-element -- local data-URL thumbnail */}
                 <img
                   src={p.thumb}
                   alt={`Page ${p.idx + 1}`}
-                  style={{ width: "100%", height: "100%", objectFit: "contain", transform: p.rot ? `rotate(${p.rot}deg)` : undefined }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    margin: "auto",
+                    // Swap the box before rotating so a quarter turn still fits.
+                    width: quarter ? "100cqh" : "100%",
+                    height: quarter ? "100cqw" : "100%",
+                    objectFit: "contain",
+                    transform: p.rot ? `rotate(${p.rot}deg)` : undefined,
+                  }}
                 />
                 <div className="pc-overlay">
                   <button type="button" className="icon-btn" onClick={() => move(p.key, -1)} disabled={i === 0} aria-label="Move left">

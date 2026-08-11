@@ -117,6 +117,7 @@
   position: absolute; cursor: move;
   border: 1.5px solid transparent; border-radius: 4px;
   font-size: 15px; color: #1a1a2e; padding: 3px 6px; background: transparent;
+  touch-action: none; /* let a touch drag the annotation instead of scrolling */
 }
 .annot.text { font-weight: 500; }
 .annot.date { font-family: var(--font-mono); }
@@ -126,6 +127,7 @@
 .handle {
   display: none; position: absolute; width: 11px; height: 11px;
   background: var(--surface); border: 2px solid var(--accent); border-radius: 50%;
+  touch-action: none;
 }
 .handle.tl { top: -6px; left: -6px; cursor: nwse-resize; }
 .handle.tr { top: -6px; right: -6px; cursor: nesw-resize; }

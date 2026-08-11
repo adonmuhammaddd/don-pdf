@@ -20,6 +20,13 @@ const MARGIN = 24; // pt
 const isHtml = (f: File) => f.type === "text/html" || /\.html?$/i.test(f.name);
 
 /**
+ * jsPDF stores a canvas handed to `addImage` as an *uncompressed* bitmap, which
+ * turns a page of plain text into megabytes. The render is already matted onto
+ * opaque white, so JPEG costs nothing in fidelity and shrinks the output ~50×.
+ */
+const toJpeg = (c: HTMLCanvasElement) => c.toDataURL("image/jpeg", 0.92);
+
+/**
  * Renders user HTML into a sandboxed, off-screen iframe so we can measure and
  * rasterise it. `allow-same-origin` (without `allow-scripts`) lets us read the
  * iframe document while keeping any embedded <script> inert — nothing executes,
@@ -105,7 +112,7 @@ export default function HtmlToPdfTool() {
         const w = canvas.width * pxToPt + pad * 2;
         const h = canvas.height * pxToPt + pad * 2;
         const pdf = new jsPDF({ unit: "pt", format: [w, h] });
-        pdf.addImage(canvas, "PNG", pad, pad, canvas.width * pxToPt, canvas.height * pxToPt);
+        pdf.addImage(toJpeg(canvas), "JPEG", pad, pad, canvas.width * pxToPt, canvas.height * pxToPt);
         downloadBlob(pdf.output("blob"), fileName);
       } else {
         const pageH = land ? base.w : base.h;
@@ -126,7 +133,7 @@ export default function HtmlToPdfTool() {
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, slice.width, slice.height);
           ctx.drawImage(canvas, 0, y0, canvas.width, h, 0, 0, canvas.width, h);
-          pdf.addImage(slice, "PNG", pad, pad, canvas.width * pxToPt, h * pxToPt);
+          pdf.addImage(toJpeg(slice), "JPEG", pad, pad, canvas.width * pxToPt, h * pxToPt);
         }
         downloadBlob(pdf.output("blob"), fileName);
       }
