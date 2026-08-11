@@ -53,14 +53,19 @@ export default function PageNumbersTool() {
       const pdf = await PDFDocument.load(doc.bytes, { ignoreEncryption: true });
       const font = await pdf.embedFont(StandardFonts.Helvetica);
       const indices = target === "all" ? pdf.getPageIndices() : parsePageRange(range, doc.pages);
-      const total = indices.length;
+      const stamped = indices.length;
       const pages = pdf.getPages();
-      indices.forEach((idx, k) => {
+      // Numbers follow a page's position in the *document*, not its position in
+      // the selection — so stamping pages 2-4 of five reads "Page 2 of 5", not
+      // "Page 1 of 3". `start` shifts the whole scheme, so `start: 0` is how you
+      // leave a cover page out of the count.
+      const lastNumber = String(start + pages.length - 1);
+      indices.forEach((idx) => {
         const page = pages[idx];
         const { width, height } = page.getSize();
         const text = format
-          .replaceAll("{n}", String(start + k))
-          .replaceAll("{total}", String(start + total - 1));
+          .replaceAll("{n}", String(start + idx))
+          .replaceAll("{total}", lastNumber);
         const tw = font.widthOfTextAtSize(text, size);
         const top = pos[0] === "t";
         const col = pos[1];
@@ -71,7 +76,7 @@ export default function PageNumbersTool() {
       const out = await pdf.save();
       const stem = baseName(doc.name);
       downloadBlob(out, `${stem}-numbered.pdf`);
-      setNote({ kind: "ok", msg: `Numbered ${total} page${total === 1 ? "" : "s"} → ${stem}-numbered.pdf` });
+      setNote({ kind: "ok", msg: `Numbered ${stamped} page${stamped === 1 ? "" : "s"} → ${stem}-numbered.pdf` });
     } catch (e) {
       setNote({ kind: "err", msg: `Failed: ${(e as Error).message}` });
     } finally {
@@ -124,6 +129,7 @@ export default function PageNumbersTool() {
           <div className="field">
             <label>Start at</label>
             <input className="input" type="number" min={0} value={start} onChange={(e) => setStart(Number(e.target.value))} />
+            <span className="hint">The number given to page 1. Use 0 to leave a cover page out of the count.</span>
           </div>
           <div className="field">
             <label>Font size</label>
