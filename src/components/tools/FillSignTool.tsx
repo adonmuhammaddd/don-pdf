@@ -10,7 +10,7 @@ import {
 } from "react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { FileDrop, ProgressBar, RunButton } from "@/components/pdfui";
-import { Banner, Icon, Modal, RangeField, cx } from "@/components/ui";
+import { Banner, Check, Icon, Modal, RangeField, Segmented, cx } from "@/components/ui";
 import { baseName, downloadBlob, hexToRgb, openPdfjsDoc, renderPageToBlob } from "@/lib/pdf";
 
 interface RPage {
@@ -53,6 +53,7 @@ export default function FillSignTool() {
   const pageBoxRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<null | {
     id: string;
+    pointerId: number;
     startX: number;
     startY: number;
     ox: number;
@@ -129,8 +130,16 @@ export default function FillSignTool() {
     const box = pageBoxRef.current;
     if (!box) return;
     const rect = box.getBoundingClientRect();
+    // Capture the pointer so the release reaches us even if it happens outside
+    // the page, over an iframe, or after the browser tried to start a drag.
+    try {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    } catch {
+      /* pointer already gone — the buttons check in `move` covers it */
+    }
     dragRef.current = {
       id: ann.id,
+      pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
       ox: mode === "resize" ? ann.wFrac ?? 0.3 : ann.xFrac,
@@ -147,7 +156,13 @@ export default function FillSignTool() {
   useEffect(() => {
     const move = (e: PointerEvent) => {
       const d = dragRef.current;
-      if (!d) return;
+      if (!d || e.pointerId !== d.pointerId) return;
+      // No button held means we missed the release (a native drag or the OS can
+      // swallow pointerup) — end the drag instead of gluing it to the cursor.
+      if (e.buttons === 0) {
+        dragRef.current = null;
+        return;
+      }
       if (d.mode === "move") {
         const nx = Math.max(0, Math.min(0.99, d.ox + (e.clientX - d.startX) / d.w));
         const ny = Math.max(0, Math.min(0.99, d.oy + (e.clientY - d.startY) / d.h));
@@ -160,13 +175,12 @@ export default function FillSignTool() {
     const up = () => {
       dragRef.current = null;
     };
+    const ends = ["pointerup", "pointercancel", "lostpointercapture", "blur"] as const;
     window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-    window.addEventListener("pointercancel", up);
+    ends.forEach((t) => window.addEventListener(t, up, true));
     return () => {
       window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      window.removeEventListener("pointercancel", up);
+      ends.forEach((t) => window.removeEventListener(t, up, true));
     };
   }, [update]);
 
@@ -251,7 +265,7 @@ export default function FillSignTool() {
         </button>
         {lastSig && (
           <button type="button" className="tool-pill" onClick={() => setPadOpen(true)}>
-            Draw new
+            New signature
           </button>
         )}
 
@@ -304,6 +318,7 @@ export default function FillSignTool() {
                 style={style}
                 onPointerDown={(e) => onPointerDown(e, a, "move")}
                 onMouseDown={(e) => e.stopPropagation()}
+                onDragStart={(e) => e.preventDefault()}
               >
                 {a.type === "sig" ? (
                   <>
@@ -366,6 +381,32 @@ function SignaturePad({
   const dirty = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
   const [hasInk, setHasInk] = useState(false);
+  const [mode, setMode] = useState<"draw" | "upload">("draw");
+  const [upFile, setUpFile] = useState<File | null>(null);
+  const [knockout, setKnockout] = useState(true);
+  const [upSig, setUpSig] = useState<{ img: string; aspect: number } | null>(null);
+  const [upErr, setUpErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Re-process whenever the file or the knockout toggle changes.
+  useEffect(() => {
+    if (!upFile) return;
+    let live = true;
+    imageToSignature(upFile, knockout)
+      .then((r) => {
+        if (!live) return;
+        setUpSig(r);
+        setUpErr(null);
+      })
+      .catch((e) => {
+        if (!live) return;
+        setUpSig(null);
+        setUpErr((e as Error).message);
+      });
+    return () => {
+      live = false;
+    };
+  }, [upFile, knockout]);
 
   const pos = (e: RPointerEvent) => {
     const c = canvasRef.current!;
@@ -404,6 +445,10 @@ function SignaturePad({
     setHasInk(false);
   };
   const save = () => {
+    if (mode === "upload") {
+      if (upSig) onSave(upSig.img, upSig.aspect);
+      return;
+    }
     const c = canvasRef.current;
     if (!c || !dirty.current) return;
     onSave(c.toDataURL("image/png"), c.height / c.width);
@@ -411,19 +456,145 @@ function SignaturePad({
 
   return (
     <Modal
-      title="Draw your signature"
+      title="Add your signature"
       onClose={onCancel}
       foot={
         <>
-          <button type="button" className="btn btn-ghost" onClick={clear}>Clear</button>
-          <button type="button" className="btn btn-primary" onClick={save} disabled={!hasInk}>Use signature</button>
+          {mode === "draw" ? (
+            <button type="button" className="btn btn-ghost" onClick={clear}>Clear</button>
+          ) : (
+            <button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()}>
+              {upFile ? "Choose another" : "Choose image"}
+            </button>
+          )}
+          <button type="button" className="btn btn-primary" onClick={save} disabled={mode === "draw" ? !hasInk : !upSig}>Use signature</button>
         </>
       }
     >
-      <div className="sig-pad">
-        <canvas ref={canvasRef} width={560} height={200} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up} />
-        {!hasInk && <div className="sig-hint">Sign here with your mouse or finger</div>}
+      <div className="stack" style={{ gap: "var(--s-4)" }}>
+        <Segmented
+          block
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: "draw", label: "Draw", icon: "sign" },
+            { value: "upload", label: "Upload image", icon: "upload" },
+          ]}
+        />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) setUpFile(f);
+            e.target.value = "";
+          }}
+        />
+        {/* Keep the canvas mounted so switching tabs doesn't wipe the drawing. */}
+        <div className="sig-pad" style={mode === "draw" ? undefined : { display: "none" }}>
+          <canvas ref={canvasRef} width={560} height={200} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up} />
+          {!hasInk && <div className="sig-hint">Sign here with your mouse or finger</div>}
+        </div>
+        {mode === "upload" && (
+          <>
+            <div
+              className="sig-pad sig-upload"
+              role="button"
+              tabIndex={0}
+              onClick={() => fileRef.current?.click()}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && fileRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const f = e.dataTransfer.files?.[0];
+                if (f) setUpFile(f);
+              }}
+            >
+              {upSig ? (
+                // eslint-disable-next-line @next/next/no-img-element -- local signature dataURL
+                <img src={upSig.img} alt="Uploaded signature" />
+              ) : (
+                <div className="sig-hint">Click or drop a PNG / JPG of your signature</div>
+              )}
+            </div>
+            <Check
+              checked={knockout}
+              onChange={setKnockout}
+              label="Remove white background"
+              sub="For a signature scanned or photographed on white paper. Turn off for transparent PNGs you want kept as-is."
+            />
+            {upErr && <Banner kind="error">{upErr}</Banner>}
+          </>
+        )}
       </div>
     </Modal>
   );
+}
+
+/**
+ * Turn an uploaded image into a signature PNG: downscale, optionally knock the
+ * paper-white background out to transparent, and trim to the ink. PNG output
+ * keeps transparency and is what pdf-lib's embedPng expects.
+ */
+async function imageToSignature(file: File, knockout: boolean): Promise<{ img: string; aspect: number }> {
+  if (!file.type.startsWith("image/")) throw new Error("That file isn't an image.");
+  let bmp: ImageBitmap;
+  try {
+    bmp = await createImageBitmap(file);
+  } catch {
+    throw new Error("Couldn't read that image.");
+  }
+  const MAX = 1200;
+  const k = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+  const w = Math.max(1, Math.round(bmp.width * k));
+  const h = Math.max(1, Math.round(bmp.height * k));
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d")!;
+  ctx.drawImage(bmp, 0, 0, w, h);
+  bmp.close();
+
+  const data = ctx.getImageData(0, 0, w, h);
+  const px = data.data;
+  if (knockout) {
+    // Luminance ramp: >= HI fully transparent, <= LO untouched, soft in between
+    // so anti-aliased stroke edges don't get a white fringe.
+    const LO = 170;
+    const HI = 225;
+    for (let i = 0; i < px.length; i += 4) {
+      const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+      if (lum >= HI) px[i + 3] = 0;
+      else if (lum > LO) px[i + 3] = Math.round(px[i + 3] * ((HI - lum) / (HI - LO)));
+    }
+  }
+
+  // Trim to the non-transparent bounds.
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (px[(y * w + x) * 4 + 3] > 8) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) throw new Error("No signature found — the image is blank after removing the background.");
+  const pad = 4;
+  x0 = Math.max(0, x0 - pad);
+  y0 = Math.max(0, y0 - pad);
+  x1 = Math.min(w - 1, x1 + pad);
+  y1 = Math.min(h - 1, y1 + pad);
+  const tw = x1 - x0 + 1;
+  const th = y1 - y0 + 1;
+  ctx.putImageData(data, 0, 0);
+  const out = document.createElement("canvas");
+  out.width = tw;
+  out.height = th;
+  out.getContext("2d")!.drawImage(c, x0, y0, tw, th, 0, 0, tw, th);
+  return { img: out.toDataURL("image/png"), aspect: th / tw };
 }
