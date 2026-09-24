@@ -16,7 +16,7 @@ export const SUPPORT_LINKS: SupportLink[] = [
     id: "trakteer",
     label: "Trakteer",
     glyph: "☕",
-    url: "https://trakteer.id/don.dev.exe", // TODO: ganti USERNAME
+    url: "https://trakteer.id/don.dev/gift",
   },
   {
     id: "saweria",
