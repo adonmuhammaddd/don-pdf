@@ -5,7 +5,9 @@ statis biasa. Tidak ada Node/PHP runtime di server, tidak ada database.
 
 > Repo: `github.com/adonmuhammaddd/don-pdf` (publik)
 > Branch: `main` (sumber, bersih) · `deploy` (main + `out/` yang di-track)
-> Server cuma butuh isi `out/` di docroot domain — **bukan** `node_modules` (build-time only).
+> Docroot domain = git checkout branch `deploy`. `.htaccess` di root repo
+> meneruskan semua request ke `out/` (sama seperti kji → `public/`), jadi source,
+> script, dan `.git` tidak bisa diakses dari web.
 
 ---
 
@@ -22,13 +24,14 @@ statis biasa. Tidak ada Node/PHP runtime di server, tidak ada database.
 
 **Server (SSH / Terminal cPanel):**
 ```bash
-cd ~/don-pdf
+cd ~/path/ke/docroot/don-pdf
 ./server-deploy.sh
-# git pull origin deploy → salin out/ ke docroot → hapus file rilis lama
+# git pull origin deploy (+ cek out/index.html & .htaccess ada)
 ```
 
 Dependency baru (`package.json` berubah) tidak butuh langkah tambahan — semuanya
 di-bundle saat `npm run build` di lokal, server tidak pernah `npm install`.
+Chunk lama ikut terhapus lewat git (file yang hilang dari `out/` di-commit sebagai delete).
 
 ---
 
@@ -36,36 +39,21 @@ di-bundle saat `npm run build` di lokal, server tidak pernah `npm install`.
 
 Repo publik → clone lewat HTTPS, tidak perlu deploy key.
 
-Clone **di luar** docroot (supaya `.git` dan source tidak ikut ter-serve):
 ```bash
-cd ~
-git clone -b deploy https://github.com/adonmuhammaddd/don-pdf.git don-pdf
-cd don-pdf
+cd ~/path/ke/docroot/don-pdf        # folder docroot domain (cPanel → Domains)
+git init
+git remote add origin https://github.com/adonmuhammaddd/don-pdf.git
+git fetch origin deploy
+git checkout -f -b deploy origin/deploy   # -f: timpa file upload manual lama
 chmod +x server-deploy.sh
-
-# Pertama kali: kasih path docroot domain-nya (cek di cPanel → Domains).
-./server-deploy.sh ~/public_html/pdf.domain.com
 ```
-Path docroot disimpan di `~/don-pdf/.deploy-target`, jadi deploy berikutnya cukup
-`./server-deploy.sh`. Mau pindah docroot: jalankan lagi dengan path baru.
-
----
-
-## Cara kerja salin ke docroot
-
-- `out/` disalin menimpa isi docroot.
-- File yang ada di rilis sebelumnya tapi tidak ada di rilis baru (chunk `_next/`
-  ber-hash lama) dihapus. Daftarnya dari `~/don-pdf/.deploy-manifest`.
-- File lain di docroot (`.htaccess`, `.well-known/`, `cgi-bin/`, dll.) **tidak
-  pernah disentuh**.
-- Deploy pertama ke docroot yang sudah berisi upload manual lama: file lama tidak
-  dihapus (belum ada manifest). Tidak masalah — cuma sisa file yang tidak dipakai;
-  hapus manual kalau mau bersih.
+Butuh Apache `mod_rewrite` (default di cPanel). Kalau setelah setup masih muncul
+"Index of /", berarti `.htaccess` belum ada di docroot — cek `ls -a`.
 
 ---
 
 ## Kalau tampilan di server "aneh" / tool PDF tidak jalan
 
 - Hard refresh (Cmd+Shift+R) — browser mungkin masih pegang chunk lama.
-- Cek `pdf.worker.min.js` ada di docroot. File itu disalin ke `public/` saat
+- Cek `out/pdf.worker.min.js` ada. File itu disalin ke `public/` saat
   `prebuild`, jadi ikut di `out/`. Kalau hilang, preview/render PDF gagal.

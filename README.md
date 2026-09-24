@@ -46,8 +46,8 @@ worker into `public/pdf.worker.min.mjs` so it can be served same-origin.
 `out/` is a plain static site — any static host works, no server runtime.
 
 Production (cPanel) goes through git: `./release.sh` locally builds and pushes
-`out/` to the `deploy` branch, then `./server-deploy.sh` on the server pulls it
-and copies it into the docroot. See [DEPLOY.md](DEPLOY.md).
+`out/` to the `deploy` branch; the docroot is a checkout of that branch, a root
+`.htaccess` serves `out/`, and `./server-deploy.sh` just pulls. See [DEPLOY.md](DEPLOY.md).
 
 ## Privacy
 

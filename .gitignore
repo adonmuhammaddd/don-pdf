@@ -60,7 +60,3 @@ next-env.d.ts
 
 # design handoff working dir (unzipped, local only)
 /_design_handoff/
-
-# server-deploy.sh state on the server (docroot path + last deployed file list)
-/.deploy-target
-/.deploy-manifest
