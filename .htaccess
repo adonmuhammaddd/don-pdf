@@ -1,0 +1,20 @@
+# Docroot = git checkout of the `deploy` branch (see DEPLOY.md).
+# Serve the static export in out/ as the site root; nothing else in the repo
+# (source, scripts, .git) is reachable.
+Options -Indexes
+ErrorDocument 404 /404.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Leave cPanel AutoSSL / ACME challenges alone.
+    RewriteCond %{REQUEST_URI} ^/\.well-known/
+    RewriteRule ^ - [L]
+
+    # Block dotfiles and git metadata.
+    RewriteRule (^|/)\. - [F,L]
+
+    # Everything else → out/
+    RewriteRule ^$ out/ [L]
+    RewriteRule ^((?!out/).+)$ out/$1 [L]
+</IfModule>
