@@ -341,6 +341,9 @@ export default function FillSignTool() {
                   <button
                     type="button"
                     onClick={() => removeAnn(a.id)}
+                    // Don't let the parent start a drag: its pointer capture
+                    // would retarget the click away from this button.
+                    onPointerDown={(e) => e.stopPropagation()}
                     aria-label="Remove"
                     style={{ position: "absolute", top: -10, right: -10, width: 20, height: 20, borderRadius: "50%", background: "var(--error)", color: "#fff", display: "grid", placeItems: "center", boxShadow: "var(--shadow-sm)" }}
                   >
